@@ -48,6 +48,17 @@ void main() {
       expect(products.first.price, 29.90);
     });
 
+    test('forwards the page parameter so results beyond the first page are reachable', () async {
+      when(() => dio.get(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
+        (_) async => _jsonResponse({'count': 0, 'next': null, 'previous': null, 'results': []}),
+      );
+
+      await service.getProducts(page: 2);
+
+      final captured = verify(() => dio.get(captureAny(), queryParameters: captureAny(named: 'queryParameters'))).captured;
+      expect(captured[1], {'page': 2});
+    });
+
     test('forwards filter parameters as query parameters', () async {
       when(() => dio.get(any(), queryParameters: any(named: 'queryParameters'))).thenAnswer(
         (_) async => _jsonResponse({'count': 0, 'next': null, 'previous': null, 'results': []}),

@@ -17,6 +17,7 @@ class ProductService {
     double? maxPrice,
     String? search,
     String? ordering,
+    int? page,
   }) async {
     final response = await _dio.get(
       ApiConstants.products,
@@ -27,6 +28,7 @@ class ProductService {
         if (maxPrice != null) 'max_price': maxPrice,
         if (search != null) 'search': search,
         if (ordering != null) 'ordering': ordering,
+        if (page != null) 'page': page,
       },
     );
     final results = response.data['results'] as List;
