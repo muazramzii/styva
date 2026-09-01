@@ -5,6 +5,7 @@ Django settings for the STYVA backend.
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 import os
 
@@ -29,9 +30,16 @@ def env_list(key, default=''):
     return [item.strip() for item in value.split(',') if item.strip()]
 
 
-SECRET_KEY = env('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production')
+_INSECURE_SECRET_KEY = 'django-insecure-change-me-in-production'
+
+SECRET_KEY = env('DJANGO_SECRET_KEY', _INSECURE_SECRET_KEY)
 
 DEBUG = env_bool('DJANGO_DEBUG', True)
+
+if not DEBUG and SECRET_KEY == _INSECURE_SECRET_KEY:
+    raise ImproperlyConfigured(
+        'DJANGO_SECRET_KEY must be set to a unique, random value when DJANGO_DEBUG is False.'
+    )
 
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
