@@ -7,7 +7,8 @@ This repository contains:
 - `styva_backend/` — Django REST API (PostgreSQL, JWT auth)
 - `styva_app/` — Flutter mobile app (Riverpod, GoRouter, Dio)
 
-This phase (1.1) delivers the foundation only: project architecture, routing, database models, and scaffolding. No shopping UI, product images, or dummy data are included.
+- **Phase 1.1** delivered the foundation: project architecture, routing, database models, and scaffolding.
+- **Phase 1.2** delivers the Product & Catalog foundation: full product CRUD, filtering/search/ordering, pagination, a seed command, and Flutter data integration (models, services, providers, functional fetch pages). The final shopping UI is still out of scope.
 
 ## Prerequisites
 
@@ -51,6 +52,20 @@ pip install -r requirements.txt
 
 API is available at `http://localhost:8000/api/`, Django admin at `http://localhost:8000/admin/`.
 
+5. Seed the catalog with placeholder brands, categories, products, and variants:
+
+   ```bash
+   python manage.py seed_products
+   ```
+
+   Creates 6 brands, 4 categories, 30 products, and size/color variants for each. Idempotent — safe to re-run. Uses placeholder image filenames only (e.g. `UNQ001.png`), no real image files.
+
+6. Run the test suite:
+
+   ```bash
+   python manage.py test
+   ```
+
 ### Backend structure
 
 ```
@@ -79,9 +94,14 @@ styva_backend/
 | POST | `/api/auth/refresh` | No |
 | GET | `/api/auth/me` | Yes |
 | GET | `/api/brands/` | No |
+| GET | `/api/brands/{id}/` | No |
 | GET | `/api/categories/` | No |
+| GET | `/api/categories/{id}/` | No |
 | GET | `/api/products/` | No |
 | GET | `/api/products/{id}/` | No |
+| POST | `/api/products/` | Admin |
+| PUT/PATCH | `/api/products/{id}/` | Admin |
+| DELETE | `/api/products/{id}/` | Admin |
 | GET | `/api/wishlist/` | Yes |
 | POST | `/api/wishlist/` | Yes |
 | GET | `/api/cart` | Yes |
@@ -90,6 +110,18 @@ styva_backend/
 | DELETE | `/api/cart/items/{id}` | Yes |
 | GET | `/api/orders` | Yes |
 | POST | `/api/orders` | Yes |
+
+### Product filtering, ordering, and pagination
+
+`GET /api/products/` supports:
+
+- **Filters** (combinable): `brand` (slug), `category` (slug), `min_price`, `max_price`, `search` (matches name/description)
+- **Ordering**: `?ordering=newest` (default), `price_low`, `price_high`
+- **Pagination**: DRF `PageNumberPagination`, `page_size=10`, navigate with `?page=2`
+
+Example: `/api/products/?brand=uniqlo&category=tops&min_price=20&max_price=100&ordering=price_low`
+
+Product create/update accepts a nested `variants` array (`size`, `color`, `stock`); updating a product replaces its full variant set.
 
 ## Flutter app setup (`styva_app`)
 
@@ -102,6 +134,13 @@ flutter run
 
 `API_BASE_URL` in `.env` should point at the backend (`http://10.0.2.2:8000/api` for the Android emulator, `http://localhost:8000/api` for iOS simulator/web).
 
+Run the test suite:
+
+```bash
+flutter analyze
+flutter test
+```
+
 ### App structure
 
 ```
@@ -111,9 +150,9 @@ styva_app/lib/
 │   ├── theme/        # AppTheme, AppColors, AppTypography (Material 3)
 │   ├── constants/    # App-wide and API constants
 │   └── utils/
-├── models/            # Data models (Freezed + json_serializable)
-├── services/          # API client (Dio)
-├── providers/         # Riverpod providers
+├── models/            # BrandModel, CategoryModel, ProductModel, VariantModel (Freezed + json_serializable)
+├── services/          # API client (Dio), ProductService
+├── providers/         # Riverpod providers (productProvider, brandProvider, categoryProvider, ...)
 ├── features/
 │   ├── auth/          # Splash, Login
 │   ├── home/
@@ -143,10 +182,10 @@ styva_app/lib/
 | `/checkout` | CheckoutPage |
 | `/profile` | ProfilePage |
 
-## Scope of this phase
+## Scope
 
-- No shopping UI beyond empty, centered-title pages
-- No product images or hardcoded products
+- Home fetches and lists real products; Product page shows name/price/brand/variants — no styling or final shopping UI
+- No product images (placeholder filenames only, e.g. `UNQ001.png`) or hand-written hardcoded products (generated via `seed_products`)
 - No AI Virtual Stylist or ML recommendations
 - No custom Django admin beyond defaults
 - No reviews
