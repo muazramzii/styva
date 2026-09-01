@@ -1,3 +1,4 @@
+from django.db.models import ProtectedError
 from rest_framework import serializers
 
 from apps.brands.models import Brand
@@ -9,10 +10,11 @@ from .models import Product, ProductVariant
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = ProductVariant
         fields = ['id', 'size', 'color', 'stock']
-        read_only_fields = ['id']
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -50,7 +52,25 @@ class ProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def _sync_variants(product, variants_data):
-        product.variants.all().delete()
-        ProductVariant.objects.bulk_create(
-            ProductVariant(product=product, **variant_data) for variant_data in variants_data
-        )
+        existing_by_id = {variant.id: variant for variant in product.variants.all()}
+        seen_ids = set()
+
+        for variant_data in variants_data:
+            variant_id = variant_data.pop('id', None)
+            existing = existing_by_id.get(variant_id)
+            if existing is not None:
+                for attr, value in variant_data.items():
+                    setattr(existing, attr, value)
+                existing.save()
+                seen_ids.add(variant_id)
+            else:
+                ProductVariant.objects.create(product=product, **variant_data)
+
+        stale_ids = set(existing_by_id) - seen_ids
+        if stale_ids:
+            try:
+                ProductVariant.objects.filter(id__in=stale_ids).delete()
+            except ProtectedError:
+                raise serializers.ValidationError(
+                    'Cannot remove a variant that already has order history.'
+                )

@@ -84,6 +84,34 @@ class ProductAPITestCase(APITestCase):
         self.assertEqual(self.cheap_product.variants.count(), 1)
         self.assertEqual(self.cheap_product.variants.first().size, 'L')
 
+    def test_updating_variant_in_place_preserves_its_id(self):
+        self.client.force_authenticate(user=self.admin_user)
+        variant = self.cheap_product.variants.first()
+
+        response = self.client.patch(f'/api/products/{self.cheap_product.id}/', {
+            'variants': [{'id': variant.id, 'size': variant.size, 'color': variant.color, 'stock': 99}],
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        variant.refresh_from_db()
+        self.assertEqual(variant.stock, 99)
+        self.assertEqual(self.cheap_product.variants.count(), 1)
+
+    def test_removing_a_variant_with_order_history_returns_clean_error(self):
+        from apps.orders.models import Order, OrderItem
+
+        variant = self.cheap_product.variants.first()
+        order = Order.objects.create(user=self.regular_user, total=Decimal('29.90'))
+        OrderItem.objects.create(order=order, variant=variant, quantity=1, price=Decimal('29.90'))
+
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(f'/api/products/{self.cheap_product.id}/', {
+            'variants': [],
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(ProductVariant.objects.filter(id=variant.id).exists())
+
     def test_admin_can_delete_product(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.delete(f'/api/products/{self.expensive_product.id}/')
