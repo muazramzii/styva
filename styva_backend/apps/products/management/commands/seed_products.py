@@ -19,6 +19,16 @@ BRANDS = [
 
 CATEGORIES = ['Tops', 'Bottoms', 'Outerwear', 'Footwear']
 
+# Not every category name pluralizes by adding "s", so naive [:-1] slicing
+# (e.g. "Footwear" -> "Footwea") breaks. Spell out the singular form used
+# in generated product names explicitly instead.
+CATEGORY_SINGULAR = {
+    'Tops': 'Top',
+    'Bottoms': 'Bottom',
+    'Outerwear': 'Outerwear',
+    'Footwear': 'Footwear',
+}
+
 SIZES = ['S', 'M', 'L', 'XL']
 
 COLORS = ['Black', 'White', 'Grey', 'Navy', 'Beige']
@@ -55,7 +65,7 @@ class Command(BaseCommand):
             product, was_created = Product.objects.get_or_create(
                 sku=sku,
                 defaults={
-                    'name': f'{brand.name} {category.name[:-1]} {color}',
+                    'name': f'{brand.name} {CATEGORY_SINGULAR[category.name]} {color}',
                     'brand': brand,
                     'category': category,
                     'description': f'Placeholder {category.name.lower()} item from {brand.name}.',
