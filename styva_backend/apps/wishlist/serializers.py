@@ -1,13 +1,13 @@
 from rest_framework import serializers
 
 from apps.products.models import Product
-from apps.products.serializers import ProductListSerializer
+from apps.products.serializers import ProductSerializer
 
 from .models import Wishlist
 
 
 class WishlistSerializer(serializers.ModelSerializer):
-    product = ProductListSerializer(read_only=True)
+    product = ProductSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.all(),
         source='product',
