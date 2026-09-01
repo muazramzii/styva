@@ -25,12 +25,13 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'user', 'total', 'status', 'items', 'created_at']
-        read_only_fields = ['id', 'user', 'status', 'created_at']
+        read_only_fields = ['id', 'user', 'total', 'status', 'created_at']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         user = self.context['request'].user
-        order = Order.objects.create(user=user, **validated_data)
+        total = sum(item['price'] * item['quantity'] for item in items_data)
+        order = Order.objects.create(user=user, total=total)
         for item_data in items_data:
             OrderItem.objects.create(order=order, **item_data)
         return order
