@@ -23,6 +23,15 @@ class CartItemCreateView(generics.CreateAPIView):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        variant = serializer.validated_data['variant']
+        quantity = serializer.validated_data.get('quantity', 1)
+
+        existing_item = CartItem.objects.filter(cart=cart, variant=variant).first()
+        if existing_item:
+            existing_item.quantity += quantity
+            existing_item.save(update_fields=['quantity'])
+            return Response(CartItemSerializer(existing_item).data, status=status.HTTP_200_OK)
+
         serializer.save(cart=cart)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
