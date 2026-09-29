@@ -1,5 +1,7 @@
 import re
 import threading
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 from unittest import mock
 
@@ -461,6 +463,22 @@ class ConcurrentCheckoutTestCase(TransactionTestCase):
 
 
 class OrderNumberTestCase(APITestCase):
+    def test_order_number_uses_the_store_local_date_not_utc(self):
+        # 19:11 UTC on 29 Sep is 03:11 on 30 Sep in Malaysia.
+        late_evening_utc = datetime(2026, 9, 29, 19, 11, tzinfo=dt_timezone.utc)
+
+        number = services.generate_order_number(now=late_evening_utc)
+
+        self.assertTrue(number.startswith('STYVA-20260930-'), number)
+
+    @override_settings(STORE_TIME_ZONE='UTC')
+    def test_store_time_zone_is_configurable(self):
+        late_evening_utc = datetime(2026, 9, 29, 19, 11, tzinfo=dt_timezone.utc)
+
+        number = services.generate_order_number(now=late_evening_utc)
+
+        self.assertTrue(number.startswith('STYVA-20260929-'), number)
+
     def test_generated_order_numbers_match_the_customer_facing_format(self):
         numbers = {services.generate_order_number() for _ in range(50)}
         self.assertTrue(all(re.fullmatch(r'STYVA-\d{8}-[A-Z2-9]{6}', n) for n in numbers))

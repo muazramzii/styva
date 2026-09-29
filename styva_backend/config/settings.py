@@ -187,6 +187,10 @@ SIMPLE_JWT = {
 
 SHIPPING_FLAT_FEE = Decimal(env('SHIPPING_FLAT_FEE', '0.00'))
 
+# Local time zone of the store. Timestamps are still stored in UTC; this only
+# decides which calendar date appears in customer-facing order numbers.
+STORE_TIME_ZONE = env('STORE_TIME_ZONE', 'Asia/Kuala_Lumpur')
+
 
 # CORS
 

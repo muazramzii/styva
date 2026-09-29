@@ -7,6 +7,7 @@ automatically -- that belongs with the payment phase.
 """
 import secrets
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -48,9 +49,13 @@ def calculate_shipping_fee(subtotal):
     return settings.SHIPPING_FLAT_FEE
 
 
-def generate_order_number():
+def generate_order_number(now=None):
+    # Use the store's local date, not UTC: an order placed at 03:00 in Malaysia
+    # is still 19:00 the previous day in UTC, and the customer should see
+    # today's date in their order number.
+    local_now = timezone.localtime(now or timezone.now(), ZoneInfo(settings.STORE_TIME_ZONE))
     suffix = ''.join(secrets.choice(_ORDER_NUMBER_ALPHABET) for _ in range(6))
-    return f'STYVA-{timezone.now():%Y%m%d}-{suffix}'
+    return f'STYVA-{local_now:%Y%m%d}-{suffix}'
 
 
 def build_checkout_summary(cart_items):
