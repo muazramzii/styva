@@ -61,22 +61,22 @@ void main() {
     expect(result.refresh, 'r');
   });
 
-  test('refresh posts the refresh token and returns the new access token', () async {
+  test('refreshToken posts the refresh token and returns the new access token', () async {
     when(() => dio.post(any(), data: any(named: 'data'))).thenAnswer(
       (_) async => _jsonResponse({'access': 'new-access'}),
     );
 
-    final access = await service.refresh('old-refresh');
+    final access = await service.refreshToken('old-refresh');
 
     expect(access, 'new-access');
     final captured = verify(() => dio.post('/auth/refresh', data: captureAny(named: 'data'))).captured;
     expect(captured.single, {'refresh': 'old-refresh'});
   });
 
-  test('me fetches and parses the current user', () async {
+  test('getCurrentUser fetches and parses the current user', () async {
     when(() => dio.get(any())).thenAnswer((_) async => _jsonResponse(_userJson));
 
-    final user = await service.me();
+    final user = await service.getCurrentUser();
 
     expect(user.email, 'jane@example.com');
     verify(() => dio.get('/auth/me')).called(1);

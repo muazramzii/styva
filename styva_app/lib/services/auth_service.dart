@@ -33,14 +33,14 @@ class AuthService {
     return AuthResponseModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<String> refresh(String refreshToken) async {
+  Future<String> refreshToken(String refreshToken) async {
     final response = await _dio.post(ApiConstants.authRefresh, data: {
       'refresh': refreshToken,
     });
     return response.data['access'] as String;
   }
 
-  Future<UserModel> me() async {
+  Future<UserModel> getCurrentUser() async {
     final response = await _dio.get(ApiConstants.authMe);
     return UserModel.fromJson(response.data as Map<String, dynamic>);
   }
