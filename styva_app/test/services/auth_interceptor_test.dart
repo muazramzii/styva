@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -16,11 +18,25 @@ DioException _unauthorizedError(String path) {
   );
 }
 
-/// [ErrorInterceptorHandler.next] completes an internal future with an
-/// error; a standalone handler in a test has nothing else awaiting it, so it
-/// must be drained explicitly or the test zone reports an unhandled error.
-Future<void> _drain(ErrorInterceptorHandler handler) {
-  return handler.future.then((_) {}, onError: (_) {});
+/// Runs [AuthInterceptor.onError] in its own error zone.
+///
+/// In real usage, Dio's pipeline always consumes [ErrorInterceptorHandler]'s
+/// completer internally. A standalone handler in a test has nothing else
+/// awaiting it, so calling `handler.next(err)` would otherwise surface as an
+/// unhandled zone error; `future` itself is `@protected` on the handler, so
+/// draining it directly isn't a legitimate option from test code. The handler
+/// is created inside the guarded zone (not passed in) so its completer's
+/// error-reporting captures *this* zone rather than the outer test zone.
+Future<void> _runOnError(AuthInterceptor interceptor, DioException err) {
+  final completer = Completer<void>();
+  runZonedGuarded(() async {
+    final handler = ErrorInterceptorHandler();
+    await interceptor.onError(err, handler);
+    if (!completer.isCompleted) completer.complete();
+  }, (error, stack) {
+    if (!completer.isCompleted) completer.complete();
+  });
+  return completer.future;
 }
 
 void main() {
@@ -58,8 +74,7 @@ void main() {
       ),
     );
 
-    final handler = ErrorInterceptorHandler();
-    await interceptor.onError(_unauthorizedError('/products/'), handler);
+    await _runOnError(interceptor, _unauthorizedError('/products/'));
 
     verify(() => refreshDio.post('/auth/refresh', data: {'refresh': 'refresh-1'})).called(1);
     verify(() => tokenStorage.saveAccessToken('new-access')).called(1);
@@ -88,12 +103,9 @@ void main() {
       ),
     );
 
-    final handlerA = ErrorInterceptorHandler();
-    final handlerB = ErrorInterceptorHandler();
-
     await Future.wait([
-      interceptor.onError(_unauthorizedError('/products/'), handlerA),
-      interceptor.onError(_unauthorizedError('/orders/'), handlerB),
+      _runOnError(interceptor, _unauthorizedError('/products/')),
+      _runOnError(interceptor, _unauthorizedError('/orders/')),
     ]);
 
     expect(refreshCallCount, 1, reason: 'only one refresh call should ever be made for concurrent 401s');
@@ -109,10 +121,7 @@ void main() {
       onSessionExpired: () => sessionExpiredCalled = true,
     );
 
-    final handler = ErrorInterceptorHandler();
-    final drained = _drain(handler); // attach the listener before completion is possible
-    await interceptor.onError(_unauthorizedError('/products/'), handler);
-    await drained;
+    await _runOnError(interceptor, _unauthorizedError('/products/'));
 
     verify(() => tokenStorage.clear()).called(1);
     expect(sessionExpiredCalled, isTrue);
@@ -120,10 +129,7 @@ void main() {
   });
 
   test('does not attempt to refresh a 401 from the login endpoint itself', () async {
-    final handler = ErrorInterceptorHandler();
-    final drained = _drain(handler);
-    await interceptor.onError(_unauthorizedError('/auth/login'), handler);
-    await drained;
+    await _runOnError(interceptor, _unauthorizedError('/auth/login'));
 
     verifyNever(() => tokenStorage.getRefreshToken());
     verifyNever(() => refreshDio.post(any(), data: any(named: 'data')));
@@ -136,10 +142,7 @@ void main() {
       response: Response(requestOptions: requestOptions, statusCode: 401),
     );
 
-    final handler = ErrorInterceptorHandler();
-    final drained = _drain(handler);
-    await interceptor.onError(err, handler);
-    await drained;
+    await _runOnError(interceptor, err);
 
     verifyNever(() => tokenStorage.getRefreshToken());
   });
