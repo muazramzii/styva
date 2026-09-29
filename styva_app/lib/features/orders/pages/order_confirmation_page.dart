@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../providers/order_provider.dart';
+import '../widgets/order_payment_section.dart';
 
 class OrderConfirmationPage extends ConsumerWidget {
   const OrderConfirmationPage({super.key, required this.orderId});
@@ -42,7 +43,9 @@ class OrderConfirmationPage extends ConsumerWidget {
               Text('Order: ${order.orderNumber}', textAlign: TextAlign.center),
               Text('Total: ${formatMoney(order.total)}', textAlign: TextAlign.center),
               Text('Status: ${formatStatus(order.status)}', textAlign: TextAlign.center),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              OrderPaymentSection(order: order),
+              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => context.go('/orders/${order.id}'),
                 child: const Text('View Order'),
