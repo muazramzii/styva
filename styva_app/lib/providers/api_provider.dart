@@ -1,5 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/api_client.dart';
+import '../services/token_storage.dart';
 
-final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
+
+final apiClientProvider = Provider<ApiClient>((ref) {
+  return ApiClient(ref.watch(tokenStorageProvider));
+});
