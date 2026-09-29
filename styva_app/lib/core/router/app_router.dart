@@ -11,6 +11,9 @@ import '../../features/cart/pages/cart_page.dart';
 import '../../features/checkout/pages/checkout_page.dart';
 import '../../features/discover/pages/discover_page.dart';
 import '../../features/home/pages/home_page.dart';
+import '../../features/orders/pages/order_confirmation_page.dart';
+import '../../features/orders/pages/order_detail_page.dart';
+import '../../features/orders/pages/orders_page.dart';
 import '../../features/product/pages/product_page.dart';
 import '../../features/profile/pages/profile_page.dart';
 import '../../features/wishlist/pages/wishlist_page.dart';
@@ -28,6 +31,9 @@ abstract class AppRoutes {
   static const String wishlist = '/wishlist';
   static const String cart = '/cart';
   static const String checkout = '/checkout';
+  static const String orders = '/orders';
+  static const String orderDetail = '/orders/:id';
+  static const String orderConfirmation = '/order-confirmation/:id';
   static const String profile = '/profile';
 }
 
@@ -129,6 +135,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.checkout,
         name: 'checkout',
         builder: (context, state) => const CheckoutPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.orders,
+        name: 'orders',
+        builder: (context, state) => const OrdersPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.orderDetail,
+        name: 'order-detail',
+        builder: (context, state) => OrderDetailPage(orderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.orderConfirmation,
+        name: 'order-confirmation',
+        builder: (context, state) => OrderConfirmationPage(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: AppRoutes.profile,

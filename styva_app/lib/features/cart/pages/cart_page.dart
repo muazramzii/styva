@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/utils/api_error.dart';
 import '../../../providers/cart_provider.dart';
 
@@ -105,8 +107,9 @@ class CartPage extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: null,
-                    child: const Text('Proceed to Checkout (coming soon)'),
+                    key: const Key('proceed_to_checkout_button'),
+                    onPressed: cart.items.isEmpty ? null : () => context.go(AppRoutes.checkout),
+                    child: const Text('Proceed to Checkout'),
                   ),
                 ),
               ],

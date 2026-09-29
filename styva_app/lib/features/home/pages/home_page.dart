@@ -26,6 +26,16 @@ class HomePage extends ConsumerWidget {
             tooltip: 'Cart',
             onPressed: () => context.go(AppRoutes.cart),
           ),
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'My Orders',
+            onPressed: () => context.go(AppRoutes.orders),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () => context.go(AppRoutes.profile),
+          ),
         ],
       ),
       body: productsAsync.when(

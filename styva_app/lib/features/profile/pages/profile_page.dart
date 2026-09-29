@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../providers/auth_provider.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -19,6 +21,11 @@ class ProfilePage extends ConsumerWidget {
             if (user != null) Text(user.fullName),
             if (user != null) Text(user.email),
             const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: () => context.go(AppRoutes.orders),
+              child: const Text('My Orders'),
+            ),
+            const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () => ref.read(authProvider.notifier).logout(),
               child: const Text('Log out'),

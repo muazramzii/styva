@@ -3,6 +3,7 @@ Django settings for the STYVA backend.
 """
 
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -178,6 +179,17 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
+
+
+# Checkout
+# Flat shipping fee (RM) applied to every order. Calculated server-side only;
+# see apps.orders.services.calculate_shipping_fee for where a real rule would go.
+
+SHIPPING_FLAT_FEE = Decimal(env('SHIPPING_FLAT_FEE', '0.00'))
+
+# Local time zone of the store. Timestamps are still stored in UTC; this only
+# decides which calendar date appears in customer-facing order numbers.
+STORE_TIME_ZONE = env('STORE_TIME_ZONE', 'Asia/Kuala_Lumpur')
 
 
 # CORS
