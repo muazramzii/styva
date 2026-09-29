@@ -25,6 +25,9 @@ dependencies:
   # Environment configuration
   flutter_dotenv: ^5.2.1
 
+  # Secure token storage
+  flutter_secure_storage: ^9.2.4
+
   # Immutable models / JSON
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
