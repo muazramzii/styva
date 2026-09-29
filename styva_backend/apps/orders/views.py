@@ -46,7 +46,7 @@ class CheckoutView(APIView):
         return Response(CheckoutSummarySerializer(summary).data)
 
     def post(self, request):
-        serializer = CheckoutSerializer(data=request.data)
+        serializer = CheckoutSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         try:
             order = checkout(request.user, serializer.validated_data['shipping_address'])
