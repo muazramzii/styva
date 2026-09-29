@@ -100,7 +100,9 @@ class _MockPaymentBody extends ConsumerWidget {
           ],
         ] else ...[
           Text(
-            'This test payment is already ${formatStatus(payment.status).toLowerCase()}.',
+            payment.status == PaymentStatus.success
+                ? 'This test payment has already succeeded.'
+                : 'This test payment has already failed.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),

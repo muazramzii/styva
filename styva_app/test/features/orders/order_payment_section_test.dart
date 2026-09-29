@@ -84,6 +84,13 @@ void main() {
     expect(find.text('Payment Pending'), findsNothing);
   });
 
+  testWidgets('orders past pending offer no pay button even if unpaid', (tester) async {
+    await pumpSection(tester, _order(status: 'packing'));
+
+    expect(find.text('Payment Pending'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
+  });
+
   testWidgets('Pay Now starts payment once and opens the mock payment page', (tester) async {
     final completer = Completer<PaymentModel>();
     when(() => paymentService.initiatePayment(1)).thenAnswer((_) => completer.future);

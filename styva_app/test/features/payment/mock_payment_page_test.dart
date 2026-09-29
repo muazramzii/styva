@@ -117,7 +117,7 @@ void main() {
 
     await pumpMockPage(tester);
 
-    expect(find.text('This test payment is already success.'), findsOneWidget);
+    expect(find.text('This test payment has already succeeded.'), findsOneWidget);
     expect(find.text('Simulate Success'), findsNothing);
     expect(find.text('Simulate Failure'), findsNothing);
   });

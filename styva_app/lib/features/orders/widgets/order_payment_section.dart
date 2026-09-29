@@ -24,6 +24,8 @@ class OrderPaymentSection extends ConsumerWidget {
 
     final isPaid = order.paymentStatus == PaymentStatus.success || order.status == 'paid';
     final isFailed = order.paymentStatus == PaymentStatus.failed;
+    // The backend only accepts payment for pending orders.
+    final canPay = !isPaid && order.status == 'pending';
 
     final (IconData icon, String label, Color color) = isPaid
         ? (Icons.check_circle, 'Paid', Colors.green.shade700)
@@ -45,7 +47,7 @@ class OrderPaymentSection extends ConsumerWidget {
                 Text(label, style: textTheme.titleMedium?.copyWith(color: color)),
               ],
             ),
-            if (!isPaid) ...[
+            if (canPay) ...[
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: isLoading ? null : () => _pay(context, ref),
