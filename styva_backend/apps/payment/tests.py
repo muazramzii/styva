@@ -451,6 +451,12 @@ class WebhookTests(PaymentTestCase):
                         'status': 'paid'}).encode(),
             json.dumps({'event_id': 'e', 'provider_reference': self.payment.provider_reference,
                         'status': 'success', 'amount': 'lots'}).encode(),
+            json.dumps({'event_id': 'e', 'provider_reference': self.payment.provider_reference,
+                        'status': ['success']}).encode(),
+            json.dumps({'event_id': None, 'provider_reference': self.payment.provider_reference,
+                        'status': 'success'}).encode(),
+            json.dumps({'event_id': 'e', 'provider_reference': {'ref': 1},
+                        'status': 'success'}).encode(),
         ]
         for body in bodies:
             with self.subTest(body=body):

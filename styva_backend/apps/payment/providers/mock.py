@@ -40,14 +40,15 @@ class MockPaymentProvider(PaymentProvider):
 
         try:
             data = json.loads(request.body)
-            event_id = str(data['event_id'])
-            provider_reference = str(data['provider_reference'])
+            event_id = data['event_id']
+            provider_reference = data['provider_reference']
             status = data['status']
             amount = Decimal(str(data['amount'])) if data.get('amount') is not None else None
-        except (ValueError, KeyError, TypeError, InvalidOperation) as error:
+        except (ValueError, KeyError, TypeError, AttributeError, InvalidOperation) as error:
             raise InvalidWebhookError('Malformed event.') from error
 
-        if status not in _STATUSES or not event_id or not provider_reference:
+        fields = (event_id, provider_reference, status)
+        if not all(isinstance(value, str) and value for value in fields) or status not in _STATUSES:
             raise InvalidWebhookError('Malformed event.')
 
         return ProviderEvent(
