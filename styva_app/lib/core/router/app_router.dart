@@ -72,6 +72,15 @@ String? resolveAuthRedirect({required AuthState authState, required String locat
   return null;
 }
 
+/// Emits only when the kind of auth state changes (loading → authenticated,
+/// authenticated → unauthenticated, ...). The redirect depends on nothing
+/// else, and refreshing the router on every emission -- e.g. when a profile
+/// update replaces the signed-in user -- would rebuild the route stack
+/// mid-navigation and undo a pending pop.
+Stream<Type> authStatusChanges(Stream<AuthState> states) {
+  return states.map((state) => state.runtimeType).distinct();
+}
+
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
@@ -92,7 +101,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    refreshListenable: GoRouterRefreshStream(authNotifier.stream),
+    refreshListenable: GoRouterRefreshStream(authStatusChanges(authNotifier.stream)),
     redirect: (context, state) {
       return resolveAuthRedirect(
         authState: ref.read(authProvider),
