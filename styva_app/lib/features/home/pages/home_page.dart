@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../providers/product_provider.dart';
 
 class HomePage extends ConsumerWidget {
@@ -11,7 +13,21 @@ class HomePage extends ConsumerWidget {
     final productsAsync = ref.watch(productProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite_border),
+            tooltip: 'Wishlist',
+            onPressed: () => context.go(AppRoutes.wishlist),
+          ),
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            tooltip: 'Cart',
+            onPressed: () => context.go(AppRoutes.cart),
+          ),
+        ],
+      ),
       body: productsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(child: Text('Failed to load products: $error')),
@@ -24,6 +40,7 @@ class HomePage extends ConsumerWidget {
             itemBuilder: (context, index) {
               final product = products[index];
               return ListTile(
+                onTap: () => context.go('/product/${product.id}'),
                 title: Text(product.name),
                 subtitle: Text('RM ${product.price.toStringAsFixed(2)}'),
               );
