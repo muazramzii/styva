@@ -23,4 +23,7 @@ class ApiConstants {
 
   static const String orders = '/orders';
   static const String checkout = '/orders/checkout';
+
+  static const String payments = '/payments';
+  static const String paymentsInitiate = '/payments/initiate';
 }
