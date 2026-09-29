@@ -10,7 +10,8 @@ This repository contains:
 - **Phase 1.1** delivered the foundation: project architecture, routing, database models, and scaffolding.
 - **Phase 1.2** delivered the Product & Catalog foundation: full product CRUD, filtering/search/ordering, pagination, a seed command, and Flutter data integration (models, services, providers, functional fetch pages).
 - **Phase 1.3** delivered Authentication & User Session: JWT register/login/refresh/logout (with blacklisting), secure token persistence and auto-login in Flutter, route guards, and functional Login/Register screens.
-- **Phase 1.4** delivers Wishlist & Cart Foundation: authenticated wishlist and cart APIs with server-authoritative pricing/stock, and functional Flutter Wishlist/Cart screens with variant selection on Product Detail. Checkout, payment, and orders are still out of scope.
+- **Phase 1.4** delivered Wishlist & Cart Foundation: authenticated wishlist and cart APIs with server-authoritative pricing/stock, and functional Flutter Wishlist/Cart screens with variant selection on Product Detail.
+- **Phase 1.5** delivers Checkout & Order Foundation: transactional checkout with stock locking and deduction, price-snapshotted orders, order history, and the Flutter checkout → confirmation → orders flow. A real payment gateway is still out of scope.
 
 ## Prerequisites
 
@@ -112,8 +113,10 @@ styva_backend/
 | POST | `/api/cart/items` | Yes |
 | PATCH | `/api/cart/items/{id}` | Yes |
 | DELETE | `/api/cart/items/{id}` | Yes |
+| GET | `/api/orders/checkout` | Yes (server-computed checkout preview) |
+| POST | `/api/orders/checkout` | Yes |
 | GET | `/api/orders` | Yes |
-| POST | `/api/orders` | Yes |
+| GET | `/api/orders/{id}` | Yes |
 
 ### Product filtering, ordering, and pagination
 
@@ -140,6 +143,17 @@ Product create/update accepts a nested `variants` array (`size`, `color`, `stock
 - Wishlist duplicates are rejected with a clean `400`, backed by a DB-level `unique_together` constraint. `DELETE /api/wishlist/{product_id}/` removes by product id, not the wishlist row's own id.
 - Adding a variant already in the cart merges into the existing `CartItem` (quantity accumulates) instead of creating a duplicate row.
 - `subtotal`/`total` are always computed server-side from the current `ProductVariant.stock` and `Product.price` — the client cannot influence price, and a later price change is reflected on the next fetch. Quantity must be `> 0` and can never exceed current stock, checked both on add (accounting for an already-existing item's quantity) and on update.
+
+### Checkout & Orders
+
+- `POST /api/orders/checkout` accepts **only** a `shipping_address` (Malaysian 5-digit postcode). Subtotal, shipping fee, total, and unit prices are always calculated by the backend from current database values; any such fields in the request are ignored.
+- Checkout runs in a single database transaction. The user's cart row is locked (so a double-tapped "Place Order" can't create two orders), and every purchased variant is locked in id order before stock is read (so two buyers of the last units can't both succeed — the loser gets a `409`). Empty cart → `400`.
+- **Stock is deducted when the order is created** (status `pending`, payment `pending`). There is no reservation/expiry yet, so an unpaid or cancelled order does not return stock automatically; that belongs with the payment phase.
+- On success the purchased cart items are removed. On any failure nothing is persisted: no order, no items, no stock change, cart intact.
+- Each `OrderItem` snapshots product name, brand, size, color, unit price, and line subtotal, so order history never changes when a product is renamed or repriced.
+- Orders get a customer-facing number like `STYVA-20260930-7K3Q9M` (store-local date + random suffix, not the database id).
+- Shipping fee is a single backend rule: `SHIPPING_FLAT_FEE` (default `0.00`), in `apps/orders/services.py::calculate_shipping_fee`. `STORE_TIME_ZONE` (default `Asia/Kuala_Lumpur`) sets the date used in order numbers.
+- Orders are read-only via the API and scoped to their owner (another user's order id returns `404`).
 
 ## Flutter app setup (`styva_app`)
 
@@ -168,9 +182,9 @@ styva_app/lib/
 │   ├── theme/        # AppTheme, AppColors, AppTypography (Material 3)
 │   ├── constants/    # App-wide and API constants
 │   └── utils/        # API error message extraction
-├── models/            # Brand/Category/Product/Variant/User/AuthResponse/Wishlist/Cart models (Freezed + json_serializable)
-├── services/          # API client (Dio), Product/Auth/Wishlist/Cart services, TokenStorage, AuthInterceptor, SessionExpiryNotifier
-├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, ...)
+├── models/            # Product/User/Wishlist/Cart/Order/ShippingAddress/Checkout models (Freezed + json_serializable)
+├── services/          # API client (Dio), Product/Auth/Wishlist/Cart/Checkout/Order services, TokenStorage, AuthInterceptor
+├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, checkoutProvider, ordersProvider, ...)
 ├── features/
 │   ├── auth/          # Splash, Login, Register
 │   ├── home/
@@ -199,6 +213,9 @@ styva_app/lib/
 | `/wishlist` | WishlistPage | Yes |
 | `/cart` | CartPage | Yes |
 | `/checkout` | CheckoutPage | Yes |
+| `/order-confirmation/:id` | OrderConfirmationPage | Yes |
+| `/orders` | OrdersPage | Yes |
+| `/orders/:id` | OrderDetailPage | Yes |
 | `/profile` | ProfilePage (includes the logout button) | Yes |
 
 ### Authentication flow
@@ -211,7 +228,8 @@ styva_app/lib/
 ## Scope
 
 - Home fetches and lists real products; Product Detail supports color/size variant selection, Add to Wishlist, and Add to Cart with success/out-of-stock/invalid-selection/API-failure feedback
-- Wishlist and Cart screens are functional; Cart's "Proceed to Checkout" is a disabled placeholder — no checkout, payment, or orders yet
+- Wishlist, Cart, Checkout, Order Confirmation, Orders, and Order Detail screens are functional; checkout shows a "Payment method — coming in next phase" placeholder and places the order with payment `pending` — no real payment gateway yet
+- No saved address book (the shipping address is entered at checkout)
 - No product images (placeholder filenames only, e.g. `UNQ001.png`) or hand-written hardcoded products (generated via `seed_products`)
 - No social/Google/Apple/biometric login, password reset, email verification, or profile editing yet
 - No AI Virtual Stylist or ML recommendations
