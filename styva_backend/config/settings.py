@@ -202,8 +202,10 @@ PAYMENT_PROVIDERS = {
 PAYMENT_DEFAULT_PROVIDER = env('PAYMENT_DEFAULT_PROVIDER', 'mock')
 
 # DEVELOPMENT ONLY. Enables POST /api/payments/{id}/mock-complete, which lets
-# the owner of a *mock* payment simulate success/failure. Off unless DEBUG.
-PAYMENT_MOCK_ENABLED = env_bool('PAYMENT_MOCK_ENABLED', DEBUG)
+# the owner of a *mock* payment simulate success/failure. On by default when
+# DEBUG; PAYMENT_MOCK_ENABLED=False turns it off, but nothing can turn it on
+# with DEBUG off -- so a copied .env can't expose it on a real deployment.
+PAYMENT_MOCK_ENABLED = DEBUG and env_bool('PAYMENT_MOCK_ENABLED', True)
 
 # Shared secret the mock provider's webhook must be signed with. Empty means
 # the mock webhook rejects every request.
