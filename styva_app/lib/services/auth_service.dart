@@ -45,6 +45,32 @@ class AuthService {
     return UserModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Updates the editable profile fields. Email is never sent: it's the login
+  /// identifier and the backend treats it as read-only.
+  Future<UserModel> updateProfile({required String fullName, required String phone}) async {
+    final response = await _dio.patch(ApiConstants.authMe, data: {
+      'full_name': fullName,
+      'phone': phone,
+    });
+    return UserModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Changes the password. The backend revokes every existing refresh token
+  /// and returns a fresh pair for this device.
+  Future<({String access, String refresh})> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmNewPassword,
+  }) async {
+    final response = await _dio.post(ApiConstants.authChangePassword, data: {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+      'confirm_new_password': confirmNewPassword,
+    });
+    final data = response.data as Map<String, dynamic>;
+    return (access: data['access'] as String, refresh: data['refresh'] as String);
+  }
+
   Future<void> logout(String refreshToken) async {
     await _dio.post(ApiConstants.authLogout, data: {
       'refresh': refreshToken,
