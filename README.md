@@ -9,7 +9,8 @@ This repository contains:
 
 - **Phase 1.1** delivered the foundation: project architecture, routing, database models, and scaffolding.
 - **Phase 1.2** delivered the Product & Catalog foundation: full product CRUD, filtering/search/ordering, pagination, a seed command, and Flutter data integration (models, services, providers, functional fetch pages).
-- **Phase 1.3** delivers Authentication & User Session: JWT register/login/refresh/logout (with blacklisting), secure token persistence and auto-login in Flutter, route guards, and functional Login/Register screens. The final shopping UI is still out of scope.
+- **Phase 1.3** delivered Authentication & User Session: JWT register/login/refresh/logout (with blacklisting), secure token persistence and auto-login in Flutter, route guards, and functional Login/Register screens.
+- **Phase 1.4** delivers Wishlist & Cart Foundation: authenticated wishlist and cart APIs with server-authoritative pricing/stock, and functional Flutter Wishlist/Cart screens with variant selection on Product Detail. Checkout, payment, and orders are still out of scope.
 
 ## Prerequisites
 
@@ -106,6 +107,7 @@ styva_backend/
 | DELETE | `/api/products/{id}/` | Admin |
 | GET | `/api/wishlist/` | Yes |
 | POST | `/api/wishlist/` | Yes |
+| DELETE | `/api/wishlist/{product_id}/` | Yes |
 | GET | `/api/cart` | Yes |
 | POST | `/api/cart/items` | Yes |
 | PATCH | `/api/cart/items/{id}` | Yes |
@@ -131,6 +133,13 @@ Product create/update accepts a nested `variants` array (`size`, `color`, `stock
 - Login and registration errors don't reveal whether an email is registered (both return the same generic "No active account found" message).
 - `/api/auth/logout` blacklists the given refresh token via SimpleJWT's token blacklist — it can never be used again, including to obtain a new access token.
 - Refresh tokens rotate on every use (`ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION`), so a stolen refresh token stops working the moment the legitimate client refreshes.
+
+### Wishlist & Cart
+
+- Both are scoped to the authenticated user; one user can never see or modify another user's wishlist or cart (enforced at the queryset level, not just in the client).
+- Wishlist duplicates are rejected with a clean `400`, backed by a DB-level `unique_together` constraint. `DELETE /api/wishlist/{product_id}/` removes by product id, not the wishlist row's own id.
+- Adding a variant already in the cart merges into the existing `CartItem` (quantity accumulates) instead of creating a duplicate row.
+- `subtotal`/`total` are always computed server-side from the current `ProductVariant.stock` and `Product.price` — the client cannot influence price, and a later price change is reflected on the next fetch. Quantity must be `> 0` and can never exceed current stock, checked both on add (accounting for an already-existing item's quantity) and on update.
 
 ## Flutter app setup (`styva_app`)
 
@@ -159,9 +168,9 @@ styva_app/lib/
 │   ├── theme/        # AppTheme, AppColors, AppTypography (Material 3)
 │   ├── constants/    # App-wide and API constants
 │   └── utils/        # API error message extraction
-├── models/            # Brand/Category/Product/Variant/User/AuthResponse models (Freezed + json_serializable)
-├── services/          # API client (Dio), Product/Auth services, TokenStorage, AuthInterceptor, SessionExpiryNotifier
-├── providers/         # Riverpod providers (productProvider, authProvider, currentUserProvider, ...)
+├── models/            # Brand/Category/Product/Variant/User/AuthResponse/Wishlist/Cart models (Freezed + json_serializable)
+├── services/          # API client (Dio), Product/Auth/Wishlist/Cart services, TokenStorage, AuthInterceptor, SessionExpiryNotifier
+├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, ...)
 ├── features/
 │   ├── auth/          # Splash, Login, Register
 │   ├── home/
@@ -201,7 +210,8 @@ styva_app/lib/
 
 ## Scope
 
-- Home fetches and lists real products; Product page shows name/price/brand/variants — no styling or final shopping UI
+- Home fetches and lists real products; Product Detail supports color/size variant selection, Add to Wishlist, and Add to Cart with success/out-of-stock/invalid-selection/API-failure feedback
+- Wishlist and Cart screens are functional; Cart's "Proceed to Checkout" is a disabled placeholder — no checkout, payment, or orders yet
 - No product images (placeholder filenames only, e.g. `UNQ001.png`) or hand-written hardcoded products (generated via `seed_products`)
 - No social/Google/Apple/biometric login, password reset, email verification, or profile editing yet
 - No AI Virtual Stylist or ML recommendations
