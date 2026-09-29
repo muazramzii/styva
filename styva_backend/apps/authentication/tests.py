@@ -136,6 +136,8 @@ class LoginTestCase(APITestCase):
             'password': 'WrongPassword',
         })
 
+        self.assertEqual(unknown_email_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(wrong_password_response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(unknown_email_response.data, wrong_password_response.data)
 
     def test_login_response_does_not_expose_password(self):
