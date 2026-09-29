@@ -24,7 +24,10 @@ mixin _$VariantModel {
   int get id => throw _privateConstructorUsedError;
   String get size => throw _privateConstructorUsedError;
   String get color => throw _privateConstructorUsedError;
-  int get stock => throw _privateConstructorUsedError;
+  int get stock =>
+      throw _privateConstructorUsedError; // Only present when a variant is nested under a cart item; absent (and
+  // therefore null) when nested under a product's own variants list.
+  ProductSummaryModel? get product => throw _privateConstructorUsedError;
 
   /// Serializes this VariantModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -43,7 +46,15 @@ abstract class $VariantModelCopyWith<$Res> {
     $Res Function(VariantModel) then,
   ) = _$VariantModelCopyWithImpl<$Res, VariantModel>;
   @useResult
-  $Res call({int id, String size, String color, int stock});
+  $Res call({
+    int id,
+    String size,
+    String color,
+    int stock,
+    ProductSummaryModel? product,
+  });
+
+  $ProductSummaryModelCopyWith<$Res>? get product;
 }
 
 /// @nodoc
@@ -65,6 +76,7 @@ class _$VariantModelCopyWithImpl<$Res, $Val extends VariantModel>
     Object? size = null,
     Object? color = null,
     Object? stock = null,
+    Object? product = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -88,9 +100,28 @@ class _$VariantModelCopyWithImpl<$Res, $Val extends VariantModel>
                     ? _value.stock
                     : stock // ignore: cast_nullable_to_non_nullable
                         as int,
+            product:
+                freezed == product
+                    ? _value.product
+                    : product // ignore: cast_nullable_to_non_nullable
+                        as ProductSummaryModel?,
           )
           as $Val,
     );
+  }
+
+  /// Create a copy of VariantModel
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $ProductSummaryModelCopyWith<$Res>? get product {
+    if (_value.product == null) {
+      return null;
+    }
+
+    return $ProductSummaryModelCopyWith<$Res>(_value.product!, (value) {
+      return _then(_value.copyWith(product: value) as $Val);
+    });
   }
 }
 
@@ -103,7 +134,16 @@ abstract class _$$VariantModelImplCopyWith<$Res>
   ) = __$$VariantModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({int id, String size, String color, int stock});
+  $Res call({
+    int id,
+    String size,
+    String color,
+    int stock,
+    ProductSummaryModel? product,
+  });
+
+  @override
+  $ProductSummaryModelCopyWith<$Res>? get product;
 }
 
 /// @nodoc
@@ -124,6 +164,7 @@ class __$$VariantModelImplCopyWithImpl<$Res>
     Object? size = null,
     Object? color = null,
     Object? stock = null,
+    Object? product = freezed,
   }) {
     return _then(
       _$VariantModelImpl(
@@ -147,6 +188,11 @@ class __$$VariantModelImplCopyWithImpl<$Res>
                 ? _value.stock
                 : stock // ignore: cast_nullable_to_non_nullable
                     as int,
+        product:
+            freezed == product
+                ? _value.product
+                : product // ignore: cast_nullable_to_non_nullable
+                    as ProductSummaryModel?,
       ),
     );
   }
@@ -160,6 +206,7 @@ class _$VariantModelImpl implements _VariantModel {
     required this.size,
     required this.color,
     required this.stock,
+    this.product,
   });
 
   factory _$VariantModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -173,10 +220,14 @@ class _$VariantModelImpl implements _VariantModel {
   final String color;
   @override
   final int stock;
+  // Only present when a variant is nested under a cart item; absent (and
+  // therefore null) when nested under a product's own variants list.
+  @override
+  final ProductSummaryModel? product;
 
   @override
   String toString() {
-    return 'VariantModel(id: $id, size: $size, color: $color, stock: $stock)';
+    return 'VariantModel(id: $id, size: $size, color: $color, stock: $stock, product: $product)';
   }
 
   @override
@@ -187,12 +238,13 @@ class _$VariantModelImpl implements _VariantModel {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.size, size) || other.size == size) &&
             (identical(other.color, color) || other.color == color) &&
-            (identical(other.stock, stock) || other.stock == stock));
+            (identical(other.stock, stock) || other.stock == stock) &&
+            (identical(other.product, product) || other.product == product));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, size, color, stock);
+  int get hashCode => Object.hash(runtimeType, id, size, color, stock, product);
 
   /// Create a copy of VariantModel
   /// with the given fields replaced by the non-null parameter values.
@@ -214,6 +266,7 @@ abstract class _VariantModel implements VariantModel {
     required final String size,
     required final String color,
     required final int stock,
+    final ProductSummaryModel? product,
   }) = _$VariantModelImpl;
 
   factory _VariantModel.fromJson(Map<String, dynamic> json) =
@@ -226,7 +279,10 @@ abstract class _VariantModel implements VariantModel {
   @override
   String get color;
   @override
-  int get stock;
+  int get stock; // Only present when a variant is nested under a cart item; absent (and
+  // therefore null) when nested under a product's own variants list.
+  @override
+  ProductSummaryModel? get product;
 
   /// Create a copy of VariantModel
   /// with the given fields replaced by the non-null parameter values.
