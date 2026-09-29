@@ -40,6 +40,14 @@ void main() {
       final redirect = resolveAuthRedirect(authState: unauthenticated, location: AppRoutes.register);
       expect(redirect, isNull);
     });
+
+    test('redirects a resolved product detail path (not the raw :id template)', () {
+      // GoRouterState.matchedLocation is the concrete path actually
+      // navigated to (e.g. "/product/1"), never the route's ":id" template,
+      // so the guard must key off real paths like this one.
+      final redirect = resolveAuthRedirect(authState: unauthenticated, location: '/product/1');
+      expect(redirect, AppRoutes.login);
+    });
   });
 
   group('resolveAuthRedirect - authenticated', () {
@@ -71,6 +79,11 @@ void main() {
         expect(redirect, isNull);
       });
     }
+
+    test('allows a resolved product detail path', () {
+      final redirect = resolveAuthRedirect(authState: authenticated, location: '/product/1');
+      expect(redirect, isNull);
+    });
   });
 
   group('resolveAuthRedirect - loading', () {
