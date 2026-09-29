@@ -8,12 +8,8 @@ part of 'checkout_request_model.dart';
 
 _$CheckoutRequestModelImpl _$$CheckoutRequestModelImplFromJson(
   Map<String, dynamic> json,
-) => _$CheckoutRequestModelImpl(
-  shippingAddress: ShippingAddressModel.fromJson(
-    json['shipping_address'] as Map<String, dynamic>,
-  ),
-);
+) => _$CheckoutRequestModelImpl(addressId: (json['address_id'] as num).toInt());
 
 Map<String, dynamic> _$$CheckoutRequestModelImplToJson(
   _$CheckoutRequestModelImpl instance,
-) => <String, dynamic>{'shipping_address': instance.shippingAddress.toJson()};
+) => <String, dynamic>{'address_id': instance.addressId};

@@ -5,7 +5,6 @@ import '../core/utils/api_error.dart';
 import '../models/checkout_request_model.dart';
 import '../models/checkout_summary_model.dart';
 import '../models/order_model.dart';
-import '../models/shipping_address_model.dart';
 import '../services/checkout_service.dart';
 import 'api_provider.dart';
 import 'cart_provider.dart';
@@ -35,13 +34,13 @@ class CheckoutNotifier extends AutoDisposeNotifier<CheckoutState> {
 
   /// Places the order. A call made while one is already in flight is ignored,
   /// so repeated taps on "Place Order" can never send a second request.
-  Future<void> placeOrder(ShippingAddressModel address) async {
+  Future<void> placeOrder(int addressId) async {
     if (state is CheckoutLoading) return;
     state = const CheckoutState.loading();
     try {
       final order = await ref
           .read(checkoutServiceProvider)
-          .checkout(CheckoutRequestModel(shippingAddress: address));
+          .checkout(CheckoutRequestModel(addressId: addressId));
       ref.invalidate(cartProvider);
       ref.invalidate(checkoutSummaryProvider);
       ref.invalidate(ordersProvider);

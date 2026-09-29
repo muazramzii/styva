@@ -7,7 +7,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:styva_app/models/cart_model.dart';
 import 'package:styva_app/models/checkout_request_model.dart';
 import 'package:styva_app/models/order_model.dart';
-import 'package:styva_app/models/shipping_address_model.dart';
 import 'package:styva_app/providers/cart_provider.dart';
 import 'package:styva_app/providers/checkout_provider.dart';
 import 'package:styva_app/services/cart_service.dart';
@@ -19,14 +18,7 @@ class MockCheckoutService extends Mock implements CheckoutService {}
 
 class MockCartService extends Mock implements CartService {}
 
-const _address = ShippingAddressModel(
-  fullName: 'Test Buyer',
-  phone: '0123456789',
-  addressLine1: '1 Jalan Ujian',
-  city: 'Skudai',
-  state: 'Johor',
-  postcode: '81300',
-);
+const _addressId = 7;
 
 void main() {
   late MockCheckoutService checkoutService;
@@ -35,7 +27,7 @@ void main() {
   final order = OrderModel.fromJson(orderDetailJson);
 
   setUpAll(() {
-    registerFallbackValue(const CheckoutRequestModel(shippingAddress: _address));
+    registerFallbackValue(const CheckoutRequestModel(addressId: _addressId));
   });
 
   setUp(() {
@@ -58,7 +50,7 @@ void main() {
     final completer = Completer<OrderModel>();
     when(() => checkoutService.checkout(any())).thenAnswer((_) => completer.future);
 
-    final future = container.read(checkoutProvider.notifier).placeOrder(_address);
+    final future = container.read(checkoutProvider.notifier).placeOrder(_addressId);
     expect(container.read(checkoutProvider), const CheckoutState.loading());
 
     completer.complete(order);
@@ -70,11 +62,11 @@ void main() {
   test('sends only the shipping address', () async {
     when(() => checkoutService.checkout(any())).thenAnswer((_) async => order);
 
-    await container.read(checkoutProvider.notifier).placeOrder(_address);
+    await container.read(checkoutProvider.notifier).placeOrder(_addressId);
 
     final request = verify(() => checkoutService.checkout(captureAny())).captured.single
         as CheckoutRequestModel;
-    expect(request.shippingAddress, _address);
+    expect(request.addressId, _addressId);
   });
 
   test('surfaces a readable error message on failure', () async {
@@ -89,7 +81,7 @@ void main() {
       ),
     ));
 
-    await container.read(checkoutProvider.notifier).placeOrder(_address);
+    await container.read(checkoutProvider.notifier).placeOrder(_addressId);
 
     expect(
       container.read(checkoutProvider),
@@ -102,9 +94,9 @@ void main() {
     when(() => checkoutService.checkout(any())).thenAnswer((_) => completer.future);
     final notifier = container.read(checkoutProvider.notifier);
 
-    final first = notifier.placeOrder(_address);
-    final second = notifier.placeOrder(_address);
-    final third = notifier.placeOrder(_address);
+    final first = notifier.placeOrder(_addressId);
+    final second = notifier.placeOrder(_addressId);
+    final third = notifier.placeOrder(_addressId);
     completer.complete(order);
     await Future.wait([first, second, third]);
 
@@ -123,7 +115,7 @@ void main() {
     expect(cartFetches, 1);
 
     when(() => checkoutService.checkout(any())).thenAnswer((_) async => order);
-    await container.read(checkoutProvider.notifier).placeOrder(_address);
+    await container.read(checkoutProvider.notifier).placeOrder(_addressId);
     await container.read(cartProvider.future);
 
     expect(cartFetches, 2);
@@ -131,11 +123,11 @@ void main() {
 
   test('can retry after an error', () async {
     when(() => checkoutService.checkout(any())).thenThrow(Exception('network'));
-    await container.read(checkoutProvider.notifier).placeOrder(_address);
+    await container.read(checkoutProvider.notifier).placeOrder(_addressId);
     expect(container.read(checkoutProvider), isA<CheckoutError>());
 
     when(() => checkoutService.checkout(any())).thenAnswer((_) async => order);
-    await container.read(checkoutProvider.notifier).placeOrder(_address);
+    await container.read(checkoutProvider.notifier).placeOrder(_addressId);
 
     expect(container.read(checkoutProvider), CheckoutState.success(order));
   });
