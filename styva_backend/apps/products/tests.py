@@ -101,8 +101,18 @@ class ProductAPITestCase(APITestCase):
         from apps.orders.models import Order, OrderItem
 
         variant = self.cheap_product.variants.first()
-        order = Order.objects.create(user=self.regular_user, total=Decimal('29.90'))
-        OrderItem.objects.create(order=order, variant=variant, quantity=1, price=Decimal('29.90'))
+        order = Order.objects.create(
+            user=self.regular_user, order_number='STYVA-20260101-TEST01',
+            subtotal=Decimal('29.90'), shipping_fee=Decimal('0.00'), total=Decimal('29.90'),
+            shipping_full_name='Test Buyer', shipping_phone='0123456789',
+            shipping_address_line_1='1 Test Street', shipping_city='Skudai',
+            shipping_state='Johor', shipping_postcode='81300',
+        )
+        OrderItem.objects.create(
+            order=order, variant=variant, product_name='Basic Tee', brand_name='UNIQLO',
+            size=variant.size, color=variant.color, quantity=1,
+            price=Decimal('29.90'), subtotal=Decimal('29.90'),
+        )
 
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(f'/api/products/{self.cheap_product.id}/', {
