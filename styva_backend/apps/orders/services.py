@@ -2,8 +2,9 @@
 
 Stock policy: stock is deducted at the moment the order is created (status
 ``pending``, payment ``pending``). There is no reservation/expiry yet, so an
-order that is later cancelled or never paid does not return its stock
-automatically -- that belongs with the payment phase.
+order that is later cancelled, never paid, or whose payment fails does not
+return its stock automatically. Phase 1.6 (payments) deliberately keeps this
+rule; restocking/expiry is a separate, later policy decision.
 """
 import secrets
 from decimal import Decimal

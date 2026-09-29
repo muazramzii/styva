@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/wishlist/', include('apps.wishlist.urls')),
     path('', include('apps.cart.urls')),
     path('', include('apps.orders.urls')),
+    path('', include('apps.payment.urls')),
 ]
 
 if settings.DEBUG:
