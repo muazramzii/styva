@@ -77,7 +77,15 @@ class AuthInterceptor extends Interceptor {
         data: {'refresh': refreshToken},
       );
       final newAccess = response.data['access'] as String;
-      await _tokenStorage.saveAccessToken(newAccess);
+      // The backend rotates refresh tokens (ROTATE_REFRESH_TOKENS) and
+      // blacklists the one just used, so the new one must replace it or the
+      // next refresh would be rejected and the user logged out.
+      final newRefresh = response.data['refresh'] as String?;
+      if (newRefresh != null) {
+        await _tokenStorage.saveTokens(access: newAccess, refresh: newRefresh);
+      } else {
+        await _tokenStorage.saveAccessToken(newAccess);
+      }
       return newAccess;
     } catch (_) {
       await _tokenStorage.clear();

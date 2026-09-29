@@ -80,6 +80,31 @@ void main() {
     verify(() => tokenStorage.saveAccessToken('new-access')).called(1);
   });
 
+  test('stores the rotated refresh token returned by the backend', () async {
+    when(() => tokenStorage.saveTokens(access: any(named: 'access'), refresh: any(named: 'refresh')))
+        .thenAnswer((_) async {});
+    when(() => tokenStorage.getRefreshToken()).thenAnswer((_) async => 'refresh-1');
+    when(() => refreshDio.post('/auth/refresh', data: any(named: 'data'))).thenAnswer(
+      (_) async => Response(
+        data: {'access': 'new-access', 'refresh': 'refresh-2'},
+        requestOptions: RequestOptions(path: '/auth/refresh'),
+        statusCode: 200,
+      ),
+    );
+    when(() => refreshDio.fetch<dynamic>(any())).thenAnswer(
+      (_) async => Response(
+        data: {'ok': true},
+        requestOptions: RequestOptions(path: '/products/'),
+        statusCode: 200,
+      ),
+    );
+
+    await _runOnError(interceptor, _unauthorizedError('/products/'));
+
+    verify(() => tokenStorage.saveTokens(access: 'new-access', refresh: 'refresh-2')).called(1);
+    verifyNever(() => tokenStorage.saveAccessToken(any()));
+  });
+
   test('concurrent 401s share a single in-flight refresh instead of racing', () async {
     when(() => tokenStorage.getRefreshToken()).thenAnswer((_) async => 'refresh-1');
 
