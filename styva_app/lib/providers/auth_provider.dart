@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../core/utils/api_error.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/session_expiry_notifier.dart';
 import '../services/token_storage.dart';
 import 'api_provider.dart';
 
@@ -18,13 +19,21 @@ class AuthState with _$AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier(this._authService, this._tokenStorage)
+  AuthNotifier(this._authService, this._tokenStorage, SessionExpiryNotifier sessionExpiryNotifier)
       : super(const AuthState.loading()) {
+    _sessionExpiryNotifier = sessionExpiryNotifier..addListener(_handleSessionExpired);
     checkAuthStatus();
   }
 
   final AuthService _authService;
   final TokenStorage _tokenStorage;
+  late final SessionExpiryNotifier _sessionExpiryNotifier;
+
+  void _handleSessionExpired() {
+    if (state is! AuthUnauthenticated) {
+      state = const AuthState.unauthenticated();
+    }
+  }
 
   Future<void> checkAuthStatus() async {
     final accessToken = await _tokenStorage.getAccessToken();
@@ -33,7 +42,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return;
     }
     try {
-      final user = await _authService.me();
+      final user = await _authService.getCurrentUser();
       state = AuthState.authenticated(user);
     } catch (_) {
       await _tokenStorage.clear();
@@ -83,6 +92,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _tokenStorage.clear();
     state = const AuthState.unauthenticated();
   }
+
+  @override
+  void dispose() {
+    _sessionExpiryNotifier.removeListener(_handleSessionExpired);
+    super.dispose();
+  }
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -90,7 +105,11 @@ final authServiceProvider = Provider<AuthService>((ref) {
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.watch(authServiceProvider), ref.watch(tokenStorageProvider));
+  return AuthNotifier(
+    ref.watch(authServiceProvider),
+    ref.watch(tokenStorageProvider),
+    ref.watch(sessionExpiryNotifierProvider),
+  );
 });
 
 final currentUserProvider = Provider<UserModel?>((ref) {

@@ -2,13 +2,20 @@ import 'package:dio/dio.dart';
 
 import '../core/constants/api_constants.dart';
 import 'auth_interceptor.dart';
+import 'session_expiry_notifier.dart';
 import 'token_storage.dart';
 
 class ApiClient {
-  ApiClient(TokenStorage tokenStorage) {
+  ApiClient(TokenStorage tokenStorage, SessionExpiryNotifier sessionExpiryNotifier) {
     final refreshDio = Dio(_baseOptions());
     _dio = Dio(_baseOptions())
-      ..interceptors.add(AuthInterceptor(tokenStorage, refreshDio));
+      ..interceptors.add(
+        AuthInterceptor(
+          tokenStorage,
+          refreshDio,
+          onSessionExpired: sessionExpiryNotifier.notifySessionExpired,
+        ),
+      );
   }
 
   late final Dio _dio;
