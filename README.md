@@ -8,7 +8,8 @@ This repository contains:
 - `styva_app/` — Flutter mobile app (Riverpod, GoRouter, Dio)
 
 - **Phase 1.1** delivered the foundation: project architecture, routing, database models, and scaffolding.
-- **Phase 1.2** delivers the Product & Catalog foundation: full product CRUD, filtering/search/ordering, pagination, a seed command, and Flutter data integration (models, services, providers, functional fetch pages). The final shopping UI is still out of scope.
+- **Phase 1.2** delivered the Product & Catalog foundation: full product CRUD, filtering/search/ordering, pagination, a seed command, and Flutter data integration (models, services, providers, functional fetch pages).
+- **Phase 1.3** delivers Authentication & User Session: JWT register/login/refresh/logout (with blacklisting), secure token persistence and auto-login in Flutter, route guards, and functional Login/Register screens. The final shopping UI is still out of scope.
 
 ## Prerequisites
 
@@ -93,6 +94,7 @@ styva_backend/
 | POST | `/api/auth/login` | No |
 | POST | `/api/auth/refresh` | No |
 | GET | `/api/auth/me` | Yes |
+| POST | `/api/auth/logout` | Yes |
 | GET | `/api/brands/` | No |
 | GET | `/api/brands/{id}/` | No |
 | GET | `/api/categories/` | No |
@@ -123,6 +125,13 @@ Example: `/api/products/?brand=uniqlo&category=tops&min_price=20&max_price=100&o
 
 Product create/update accepts a nested `variants` array (`size`, `color`, `stock`); updating a product replaces its full variant set.
 
+### Authentication
+
+- Registration/login accept email case-insensitively (`Jane@x.com` and `jane@x.com` are the same account) and never return the password.
+- Login and registration errors don't reveal whether an email is registered (both return the same generic "No active account found" message).
+- `/api/auth/logout` blacklists the given refresh token via SimpleJWT's token blacklist — it can never be used again, including to obtain a new access token.
+- Refresh tokens rotate on every use (`ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION`), so a stolen refresh token stops working the moment the legitimate client refreshes.
+
 ## Flutter app setup (`styva_app`)
 
 ```bash
@@ -146,15 +155,15 @@ flutter test
 ```
 styva_app/lib/
 ├── core/
-│   ├── router/       # GoRouter configuration
+│   ├── router/       # GoRouter configuration + auth route guard
 │   ├── theme/        # AppTheme, AppColors, AppTypography (Material 3)
 │   ├── constants/    # App-wide and API constants
-│   └── utils/
-├── models/            # BrandModel, CategoryModel, ProductModel, VariantModel (Freezed + json_serializable)
-├── services/          # API client (Dio), ProductService
-├── providers/         # Riverpod providers (productProvider, brandProvider, categoryProvider, ...)
+│   └── utils/        # API error message extraction
+├── models/            # Brand/Category/Product/Variant/User/AuthResponse models (Freezed + json_serializable)
+├── services/          # API client (Dio), Product/Auth services, TokenStorage, AuthInterceptor, SessionExpiryNotifier
+├── providers/         # Riverpod providers (productProvider, authProvider, currentUserProvider, ...)
 ├── features/
-│   ├── auth/          # Splash, Login
+│   ├── auth/          # Splash, Login, Register
 │   ├── home/
 │   ├── discover/
 │   ├── product/
@@ -170,22 +179,31 @@ styva_app/lib/
 
 ### Routes
 
-| Path | Page |
-| --- | --- |
-| `/` | SplashPage |
-| `/login` | LoginPage |
-| `/home` | HomePage |
-| `/discover` | DiscoverPage |
-| `/product/:id` | ProductPage |
-| `/wishlist` | WishlistPage |
-| `/cart` | CartPage |
-| `/checkout` | CheckoutPage |
-| `/profile` | ProfilePage |
+| Path | Page | Requires login |
+| --- | --- | --- |
+| `/` | SplashPage (runs the auth check, then redirects) | — |
+| `/login` | LoginPage | No (redirects to `/home` if already logged in) |
+| `/register` | RegisterPage | No (redirects to `/home` if already logged in) |
+| `/home` | HomePage | Yes |
+| `/discover` | DiscoverPage | Yes |
+| `/product/:id` | ProductPage | Yes |
+| `/wishlist` | WishlistPage | Yes |
+| `/cart` | CartPage | Yes |
+| `/checkout` | CheckoutPage | Yes |
+| `/profile` | ProfilePage (includes the logout button) | Yes |
+
+### Authentication flow
+
+- Tokens are persisted in `flutter_secure_storage` (never `SharedPreferences`); `TokenStorage` is the single place that reads/writes them.
+- On startup, `authProvider` checks for a stored access token and calls `/api/auth/me` to restore the session (`AuthState`: `loading` → `authenticated`/`unauthenticated`). The splash screen is shown while this resolves, so an unauthenticated user is never briefly shown a protected screen.
+- `AuthInterceptor` attaches the access token to every request and, on a `401`, transparently refreshes and retries once. Concurrent `401`s share a single in-flight refresh instead of racing each other. If the refresh itself fails, tokens are cleared and the app reactively drops back to `unauthenticated`.
+- Logging out calls `/api/auth/logout` (best-effort — the local session is cleared either way) and clears stored tokens.
 
 ## Scope
 
 - Home fetches and lists real products; Product page shows name/price/brand/variants — no styling or final shopping UI
 - No product images (placeholder filenames only, e.g. `UNQ001.png`) or hand-written hardcoded products (generated via `seed_products`)
+- No social/Google/Apple/biometric login, password reset, email verification, or profile editing yet
 - No AI Virtual Stylist or ML recommendations
 - No custom Django admin beyond defaults
 - No reviews
