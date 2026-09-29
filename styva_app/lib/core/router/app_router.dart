@@ -33,16 +33,23 @@ abstract class AppRoutes {
 
 /// Pure redirect decision, kept separate from GoRouter wiring so it can be
 /// unit tested without spinning up a router or widget tree.
+///
+/// Every screen requires authentication except /login and /register; the
+/// splash screen ('/') is where the auth-status check runs, so it resolves
+/// to /login or /home once that check completes rather than being a
+/// destination in its own right. Both branches converge to a stable route
+/// (login or home) on the very next evaluation, so this can't redirect-loop.
 String? resolveAuthRedirect({required AuthState authState, required String location}) {
   if (authState is AuthLoading) return null;
 
   final isAuthenticated = authState is AuthAuthenticated;
-  final isAuthRoute = location == AppRoutes.login || location == AppRoutes.register;
+  final isAuthScreen = location == AppRoutes.login || location == AppRoutes.register;
 
-  if (location == AppRoutes.home && !isAuthenticated) {
-    return AppRoutes.login;
+  if (!isAuthenticated) {
+    return isAuthScreen ? null : AppRoutes.login;
   }
-  if (isAuthRoute && isAuthenticated) {
+
+  if (isAuthScreen || location == AppRoutes.splash) {
     return AppRoutes.home;
   }
   return null;
