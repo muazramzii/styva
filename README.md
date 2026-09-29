@@ -11,7 +11,8 @@ This repository contains:
 - **Phase 1.2** delivered the Product & Catalog foundation: full product CRUD, filtering/search/ordering, pagination, a seed command, and Flutter data integration (models, services, providers, functional fetch pages).
 - **Phase 1.3** delivered Authentication & User Session: JWT register/login/refresh/logout (with blacklisting), secure token persistence and auto-login in Flutter, route guards, and functional Login/Register screens.
 - **Phase 1.4** delivered Wishlist & Cart Foundation: authenticated wishlist and cart APIs with server-authoritative pricing/stock, and functional Flutter Wishlist/Cart screens with variant selection on Product Detail.
-- **Phase 1.5** delivers Checkout & Order Foundation: transactional checkout with stock locking and deduction, price-snapshotted orders, order history, and the Flutter checkout → confirmation → orders flow. A real payment gateway is still out of scope.
+- **Phase 1.5** delivered Checkout & Order Foundation: transactional checkout with stock locking and deduction, price-snapshotted orders, order history, and the Flutter checkout → confirmation → orders flow.
+- **Phase 1.6** delivers Payment Foundation: a provider-agnostic payment model and API (initiation, status, signed webhooks, idempotent state transitions), a development-only mock provider, and the Flutter Pay Now / Try Again flow. No real payment gateway is integrated yet.
 
 ## Prerequisites
 
@@ -83,7 +84,7 @@ styva_backend/
 │   ├── wishlist/
 │   ├── cart/                 # Cart, CartItem
 │   ├── orders/                # Order, OrderItem
-│   └── payment/
+│   └── payment/                # Payment, PaymentEvent, providers/ (base + dev-only mock)
 ├── manage.py
 └── requirements.txt
 ```
@@ -117,6 +118,10 @@ styva_backend/
 | POST | `/api/orders/checkout` | Yes |
 | GET | `/api/orders` | Yes |
 | GET | `/api/orders/{id}` | Yes |
+| POST | `/api/payments/initiate` | Yes |
+| GET | `/api/payments/{id}` | Yes |
+| POST | `/api/payments/webhook/{provider}` | Provider signature (no user auth) |
+| POST | `/api/payments/{id}/mock-complete` | Yes — development only (`DEBUG`) |
 
 ### Product filtering, ordering, and pagination
 
@@ -148,12 +153,24 @@ Product create/update accepts a nested `variants` array (`size`, `color`, `stock
 
 - `POST /api/orders/checkout` accepts **only** a `shipping_address` (Malaysian 5-digit postcode). Subtotal, shipping fee, total, and unit prices are always calculated by the backend from current database values; any such fields in the request are ignored.
 - Checkout runs in a single database transaction. The user's cart row is locked (so a double-tapped "Place Order" can't create two orders), and every purchased variant is locked in id order before stock is read (so two buyers of the last units can't both succeed — the loser gets a `409`). Empty cart → `400`.
-- **Stock is deducted when the order is created** (status `pending`, payment `pending`). There is no reservation/expiry yet, so an unpaid or cancelled order does not return stock automatically; that belongs with the payment phase.
+- **Stock is deducted when the order is created** (status `pending`, payment `pending`). There is no reservation/expiry yet, so an unpaid, cancelled, or payment-failed order does not return stock automatically. Phase 1.6 keeps this rule unchanged; restocking is a later policy decision.
 - On success the purchased cart items are removed. On any failure nothing is persisted: no order, no items, no stock change, cart intact.
 - Each `OrderItem` snapshots product name, brand, size, color, unit price, and line subtotal, so order history never changes when a product is renamed or repriced.
 - Orders get a customer-facing number like `STYVA-20260930-7K3Q9M` (store-local date + random suffix, not the database id).
 - Shipping fee is a single backend rule: `SHIPPING_FLAT_FEE` (default `0.00`), in `apps/orders/services.py::calculate_shipping_fee`. `STORE_TIME_ZONE` (default `Asia/Kuala_Lumpur`) sets the date used in order numbers.
 - Orders are read-only via the API and scoped to their owner (another user's order id returns `404`).
+
+### Payments
+
+> **No real payment gateway yet.** The only provider is a development/test mock that moves no money.
+
+- `POST /api/payments/initiate` accepts **only** `{"order_id": ...}`. The amount is always the order's own `total`; any `amount`/`total`/`payment_status` in the request is ignored. Only the order's owner can pay it (otherwise `404`). Paid orders → `409`; cancelled or otherwise non-pending orders → `409`.
+- One order can have several payment attempts (so failures are kept as history), but at most **one pending** and **one successful** payment — enforced by partial unique constraints. Initiating again while a payment is pending returns that same payment (`200`); concurrent initiations are serialized by locking the order row.
+- Payment state is separate from order state: payment `success` → order `paid` (payment status `success`); payment `failed` → order stays `pending` with payment status `failed`, and the customer can retry (a new attempt is created).
+- Status only changes through provider events, never through a client request. `POST /api/payments/webhook/{provider}` has user authentication disabled and trusts only the provider's own verification (the mock uses an HMAC-SHA256 signature in `X-Mock-Signature`, and rejects everything when `MOCK_PAYMENT_WEBHOOK_SECRET` is empty). Events whose amount doesn't match the payment are rejected.
+- Processing is idempotent: every event is recorded in `PaymentEvent` (unique per provider + event id), so a redelivered webhook is a no-op, and a payment can leave `pending` only once — a second success, or a late failure after success, is recorded as `ignored`.
+- New providers (ToyyibPay, Billplz, Stripe, iPay88, FPX) plug in by subclassing `apps/payment/providers/base.py::PaymentProvider` and adding an entry to `PAYMENT_PROVIDERS`; `PAYMENT_DEFAULT_PROVIDER` selects which one new payments use.
+- **Development only:** `POST /api/payments/{id}/mock-complete` with `{"outcome": "success" | "failed"}` lets the owner of a *mock* payment simulate the provider's result, through the same event pipeline as a webhook. It exists only when `DJANGO_DEBUG=True` (`PAYMENT_MOCK_ENABLED=False` turns it off; nothing turns it on without DEBUG); otherwise it returns `404`.
 
 ## Flutter app setup (`styva_app`)
 
@@ -182,9 +199,9 @@ styva_app/lib/
 │   ├── theme/        # AppTheme, AppColors, AppTypography (Material 3)
 │   ├── constants/    # App-wide and API constants
 │   └── utils/        # API error message extraction
-├── models/            # Product/User/Wishlist/Cart/Order/ShippingAddress/Checkout models (Freezed + json_serializable)
-├── services/          # API client (Dio), Product/Auth/Wishlist/Cart/Checkout/Order services, TokenStorage, AuthInterceptor
-├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, checkoutProvider, ordersProvider, ...)
+├── models/            # Product/User/Wishlist/Cart/Order/ShippingAddress/Checkout/Payment models (Freezed + json_serializable)
+├── services/          # API client (Dio), Product/Auth/Wishlist/Cart/Checkout/Order/Payment services, TokenStorage, AuthInterceptor
+├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, checkoutProvider, ordersProvider, paymentProvider, ...)
 ├── features/
 │   ├── auth/          # Splash, Login, Register
 │   ├── home/
@@ -193,6 +210,8 @@ styva_app/lib/
 │   ├── wishlist/
 │   ├── cart/
 │   ├── checkout/
+│   ├── orders/        # Orders, Order Detail, Order Confirmation, payment section
+│   ├── payment/       # Development-only STYVA Test Payment screen
 │   └── profile/
 ├── shared/
 │   ├── widgets/
@@ -216,6 +235,7 @@ styva_app/lib/
 | `/order-confirmation/:id` | OrderConfirmationPage | Yes |
 | `/orders` | OrdersPage | Yes |
 | `/orders/:id` | OrderDetailPage | Yes |
+| `/payments/:id/mock` | MockPaymentPage (development only — "STYVA Test Payment") | Yes |
 | `/profile` | ProfilePage (includes the logout button) | Yes |
 
 ### Authentication flow
@@ -228,7 +248,8 @@ styva_app/lib/
 ## Scope
 
 - Home fetches and lists real products; Product Detail supports color/size variant selection, Add to Wishlist, and Add to Cart with success/out-of-stock/invalid-selection/API-failure feedback
-- Wishlist, Cart, Checkout, Order Confirmation, Orders, and Order Detail screens are functional; checkout shows a "Payment method — coming in next phase" placeholder and places the order with payment `pending` — no real payment gateway yet
+- Wishlist, Cart, Checkout, Order Confirmation, Orders, and Order Detail screens are functional; checkout places the order with payment `pending`
+- Order Detail and Order Confirmation show Payment Pending (Pay Now), Paid, or Payment Failed (Try Again). Pay Now opens the development-only "STYVA Test Payment" screen with Simulate Success / Simulate Failure — **no real payment gateway, card processing, or banking integration yet**
 - No saved address book (the shipping address is entered at checkout)
 - No product images (placeholder filenames only, e.g. `UNQ001.png`) or hand-written hardcoded products (generated via `seed_products`)
 - No social/Google/Apple/biometric login, password reset, email verification, or profile editing yet

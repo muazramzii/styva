@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../providers/order_provider.dart';
+import '../widgets/order_payment_section.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   const OrderDetailPage({super.key, required this.orderId});
@@ -37,7 +38,8 @@ class OrderDetailPage extends ConsumerWidget {
               Text('Placed ${formatDate(order.createdAt)}'),
               const SizedBox(height: 8),
               Text('Status: ${formatStatus(order.status)}'),
-              Text('Payment: ${formatStatus(order.paymentStatus)}'),
+              const SizedBox(height: 16),
+              OrderPaymentSection(order: order),
               const SizedBox(height: 24),
               Text('Items', style: textTheme.titleMedium),
               for (final item in order.items)

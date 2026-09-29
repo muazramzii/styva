@@ -192,6 +192,26 @@ SHIPPING_FLAT_FEE = Decimal(env('SHIPPING_FLAT_FEE', '0.00'))
 STORE_TIME_ZONE = env('STORE_TIME_ZONE', 'Asia/Kuala_Lumpur')
 
 
+# Payments
+# Real providers (ToyyibPay, Billplz, Stripe, iPay88, FPX) are added here as
+# PaymentProvider subclasses; the order/payment core never references one.
+
+PAYMENT_PROVIDERS = {
+    'mock': 'apps.payment.providers.mock.MockPaymentProvider',
+}
+PAYMENT_DEFAULT_PROVIDER = env('PAYMENT_DEFAULT_PROVIDER', 'mock')
+
+# DEVELOPMENT ONLY. Enables POST /api/payments/{id}/mock-complete, which lets
+# the owner of a *mock* payment simulate success/failure. On by default when
+# DEBUG; PAYMENT_MOCK_ENABLED=False turns it off, but nothing can turn it on
+# with DEBUG off -- so a copied .env can't expose it on a real deployment.
+PAYMENT_MOCK_ENABLED = DEBUG and env_bool('PAYMENT_MOCK_ENABLED', True)
+
+# Shared secret the mock provider's webhook must be signed with. Empty means
+# the mock webhook rejects every request.
+MOCK_PAYMENT_WEBHOOK_SECRET = env('MOCK_PAYMENT_WEBHOOK_SECRET', '')
+
+
 # CORS
 
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
