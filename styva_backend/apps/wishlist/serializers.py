@@ -18,3 +18,9 @@ class WishlistSerializer(serializers.ModelSerializer):
         model = Wishlist
         fields = ['id', 'product', 'product_id', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+    def validate_product_id(self, product):
+        request = self.context['request']
+        if Wishlist.objects.filter(user=request.user, product=product).exists():
+            raise serializers.ValidationError('This product is already in your wishlist.')
+        return product

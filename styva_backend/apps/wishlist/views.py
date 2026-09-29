@@ -9,6 +9,8 @@ class WishlistViewSet(viewsets.ModelViewSet):
     serializer_class = WishlistSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete']
+    lookup_field = 'product_id'
+    lookup_url_kwarg = 'product_id'
 
     def get_queryset(self):
         return Wishlist.objects.filter(user=self.request.user).select_related('product')
