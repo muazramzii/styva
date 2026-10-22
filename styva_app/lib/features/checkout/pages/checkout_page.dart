@@ -42,6 +42,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           context.go('/order-confirmation/${order.id}');
         case CheckoutError(:final message):
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          // The chosen address may have been deleted elsewhere ("Address not
+          // found."); reload so it drops out and the default is pre-selected.
+          ref.invalidate(addressesProvider);
         default:
           break;
       }

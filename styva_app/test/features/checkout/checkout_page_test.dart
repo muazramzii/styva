@@ -266,4 +266,32 @@ void main() {
     expect(find.byType(CheckoutPage), findsOneWidget);
     expect(placeOrderButton(tester).onPressed, isNotNull);
   });
+
+  testWidgets('an address deleted elsewhere drops out after a failed checkout', (tester) async {
+    when(() => service.getSummary()).thenAnswer((_) async => _summaryWithItem);
+    final options = RequestOptions(path: '');
+    when(() => service.checkout(any())).thenThrow(DioException(
+      requestOptions: options,
+      type: DioExceptionType.badResponse,
+      response: Response(
+        requestOptions: options,
+        statusCode: 400,
+        data: {
+          'address_id': ['Address not found.'],
+        },
+      ),
+    ));
+    await pumpCheckout(tester);
+    await tester.tap(find.text('Ali Office'));
+    await tester.pumpAndSettle();
+
+    // The office address is deleted on another device before Place Order.
+    when(() => addressService.getAddresses()).thenAnswer((_) async => [_home]);
+    await tester.tap(find.byKey(const Key('place_order_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ali Office'), findsNothing);
+    expect(addressTile(tester, 1).groupValue, 1);
+    expect(placeOrderButton(tester).onPressed, isNotNull);
+  });
 }
