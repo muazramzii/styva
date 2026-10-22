@@ -7,7 +7,6 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/api_error.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../providers/cart_provider.dart';
 import '../../../providers/wishlist_provider.dart';
 import '../../../shared/widgets/product_image.dart';
 import '../../../shared/widgets/state_message.dart';
@@ -81,6 +80,18 @@ class WishlistPage extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             Text(formatMoney(product.price), style: AppTypography.price),
+                            const SizedBox(height: AppSpacing.xs),
+                            // A saved product has no size or colour yet, so adding it straight to
+                            // the cart would have to guess a variant. Send the shopper to choose.
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                                onPressed: () => context.push('/product/${product.id}'),
+                                icon: const Icon(Icons.straighten, size: 18),
+                                label: const Text('Choose size'),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -96,23 +107,6 @@ class WishlistPage extends ConsumerWidget {
                                 if (context.mounted) _showMessage(context, extractApiErrorMessage(e));
                               }
                             },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_shopping_cart),
-                            tooltip: 'Add to Cart',
-                            onPressed:
-                                product.variants.isEmpty
-                                    ? null
-                                    : () async {
-                                      try {
-                                        await ref
-                                            .read(cartProvider.notifier)
-                                            .addItem(variantId: product.variants.first.id, quantity: 1);
-                                        if (context.mounted) _showMessage(context, 'Added to cart');
-                                      } catch (e) {
-                                        if (context.mounted) _showMessage(context, extractApiErrorMessage(e));
-                                      }
-                                    },
                           ),
                         ],
                       ),
