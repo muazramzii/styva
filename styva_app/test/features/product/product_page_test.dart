@@ -54,8 +54,17 @@ void main() {
     );
   }
 
-  testWidgets('Add to Cart is disabled until a color and size are selected', (tester) async {
+  /// A tall phone-like viewport: the product page scrolls, and the option
+  /// chips sit below the photo.
+  Future<void> pumpProduct(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(buildTestable());
+  }
+
+  testWidgets('Add to Cart is disabled until a color and size are selected', (tester) async {
+    await pumpProduct(tester);
     await tester.pumpAndSettle();
 
     final button = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Add to Cart'));
@@ -76,7 +85,7 @@ void main() {
       (_) async => const CartModel(id: 1, items: [], total: 0),
     );
 
-    await tester.pumpWidget(buildTestable());
+    await pumpProduct(tester);
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Black'));
@@ -95,7 +104,7 @@ void main() {
   });
 
   testWidgets('selecting an out-of-stock size disables Add to Cart', (tester) async {
-    await tester.pumpWidget(buildTestable());
+    await pumpProduct(tester);
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Black'));
@@ -114,7 +123,7 @@ void main() {
     );
     when(() => wishlistService.getWishlist()).thenAnswer((_) async => []);
 
-    await tester.pumpWidget(buildTestable());
+    await pumpProduct(tester);
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Wishlist'));
