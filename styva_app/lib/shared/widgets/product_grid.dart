@@ -52,7 +52,7 @@ class ProductGridSliver extends StatelessWidget {
               final tileWidth = (constraints.crossAxisExtent - gap * (columns - 1)) / columns;
               // Image (3:4) plus brand, two-line name and price, scaled with
               // the user's text size so large fonts never overflow the tile.
-              final textHeight = MediaQuery.textScalerOf(context).scale(96);
+              final textHeight = ProductCard.textBlockHeight(MediaQuery.textScalerOf(context));
               return SliverGrid.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columns,

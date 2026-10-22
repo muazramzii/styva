@@ -14,6 +14,14 @@ class ProductCard extends StatelessWidget {
   final ProductModel product;
   final VoidCallback onTap;
 
+  /// Height of the text under the image (brand, two-line name, price and the
+  /// gaps between them) for the user's text size. Each line is scaled on its
+  /// own, so it stays right with non-linear font scaling.
+  static double textBlockHeight(TextScaler scaler) {
+    const gaps = AppSpacing.sm + 2 + AppSpacing.xs;
+    return gaps + scaler.scale(11) * 1.4 + 2 * scaler.scale(14) * 1.45 + scaler.scale(15) * 1.4 + 2;
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -25,6 +33,7 @@ class ProductCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ProductImage(url: product.image, label: product.brand.name, borderRadius: AppRadius.md),
@@ -38,7 +47,12 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(product.name, style: textTheme.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: AppSpacing.xs),
-            Text(formatMoney(product.price), style: AppTypography.price),
+            // One line always: shrinks on very narrow tiles / huge text rather than wrapping.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(formatMoney(product.price), style: AppTypography.price, maxLines: 1),
+            ),
           ],
         ),
       ),
