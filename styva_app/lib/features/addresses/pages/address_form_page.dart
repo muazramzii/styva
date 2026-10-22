@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/malaysia.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/utils/api_error.dart';
 import '../../../models/address_model.dart';
 import '../../../providers/address_provider.dart';
@@ -128,7 +128,7 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
           : await notifier.save(widget.initial!.id, input);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Address saved')));
-      context.pop(saved);
+      popOrGo(context, AppRoutes.addresses, saved);
     } catch (e) {
       if (mounted) {
         setState(() {

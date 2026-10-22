@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -46,6 +46,18 @@ abstract class AppRoutes {
   static const String addresses = '/addresses';
   static const String addressNew = '/addresses/new';
   static const String addressEdit = '/addresses/:id/edit';
+}
+
+/// Leaves a pushed screen: pops (with [result]) when there is a screen to go
+/// back to, otherwise goes to [fallback]. A page opened directly by URL (e.g.
+/// a web refresh on /profile/edit) has nothing beneath it, and a bare
+/// `context.pop()` would throw there.
+void popOrGo<T extends Object?>(BuildContext context, String fallback, [T? result]) {
+  if (context.canPop()) {
+    context.pop(result);
+  } else {
+    context.go(fallback);
+  }
 }
 
 /// Pure redirect decision, kept separate from GoRouter wiring so it can be

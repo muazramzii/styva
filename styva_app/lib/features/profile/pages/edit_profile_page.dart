@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/malaysia.dart';
+import '../../../core/router/app_router.dart';
+import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/profile_provider.dart';
 
@@ -15,15 +16,22 @@ class EditProfilePage extends ConsumerStatefulWidget {
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _name;
-  late final TextEditingController _phone;
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  bool _prefilled = false;
 
   @override
   void initState() {
     super.initState();
-    final user = ref.read(currentUserProvider);
-    _name = TextEditingController(text: user?.fullName ?? '');
-    _phone = TextEditingController(text: user?.phone ?? '');
+    // Opened directly by URL, this page can build while the session is still
+    // being restored; fill the form as soon as the user is known (once only,
+    // so it never overwrites what the user has typed).
+    ref.listenManual<UserModel?>(currentUserProvider, (_, user) {
+      if (user == null || _prefilled) return;
+      _prefilled = true;
+      _name.text = user.fullName;
+      _phone.text = user.phone;
+    }, fireImmediately: true);
   }
 
   @override
@@ -46,7 +54,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     ref.listen<SubmitState>(editProfileProvider, (previous, next) {
       if (next is SubmitSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
-        context.pop();
+        popOrGo(context, AppRoutes.profile);
       }
     });
 
@@ -89,6 +97,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             ),
             const SizedBox(height: 12),
             TextFormField(
+              // initialValue is read once; the key rebuilds the field if the
+              // user loads after the page was first built.
+              key: ValueKey('profile_email_$email'),
               initialValue: email,
               enabled: false,
               decoration: const InputDecoration(

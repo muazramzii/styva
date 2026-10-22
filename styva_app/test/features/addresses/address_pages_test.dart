@@ -255,6 +255,19 @@ void main() {
       expect(input.isDefault, isTrue);
     });
 
+    testWidgets('saving a form opened directly by URL lands on the address list', (tester) async {
+      when(() => service.getAddresses()).thenAnswer((_) async => [_home]);
+      when(() => service.createAddress(any())).thenAnswer((_) async => _office);
+      await pumpAt(tester, '/addresses/new');
+
+      await fillValid(tester);
+      await tester.tap(find.byKey(const Key('address_save')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AddressListPage), findsOneWidget);
+      expect(find.byType(AddressFormPage), findsNothing);
+    });
+
     testWidgets('Save is disabled while saving, so repeat taps create one address', (tester) async {
       when(() => service.getAddresses()).thenAnswer((_) async => [_home]);
       final completer = Completer<AddressModel>();

@@ -99,6 +99,62 @@ void main() {
     });
   });
 
+  group('opened directly by URL (nothing to go back to)', () {
+    Future<void> pumpDirect(WidgetTester tester, String location) async {
+      final router = GoRouter(
+        initialLocation: location,
+        routes: [
+          GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
+          GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfilePage()),
+          GoRoute(path: '/profile/password', builder: (_, __) => const ChangePasswordPage()),
+        ],
+      );
+      await tester.pumpWidget(ProviderScope(
+        overrides: signedInOverrides(authService, tokenStorage),
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the form fills in once the session finishes restoring', (tester) async {
+      await pumpDirect(tester, '/profile/edit');
+
+      expect(find.widgetWithText(TextFormField, 'Jane Doe'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '0123456789'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'jane@example.com'), findsOneWidget);
+    });
+
+    testWidgets('saving the profile lands on Account', (tester) async {
+      when(() => authService.updateProfile(fullName: any(named: 'fullName'), phone: any(named: 'phone')))
+          .thenAnswer((_) async => signedInUser);
+      await pumpDirect(tester, '/profile/edit');
+
+      await tester.tap(find.byKey(const Key('profile_save')));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ProfilePage), findsOneWidget);
+    });
+
+    testWidgets('changing the password lands on Account', (tester) async {
+      when(() => authService.changePassword(
+            currentPassword: any(named: 'currentPassword'),
+            newPassword: any(named: 'newPassword'),
+            confirmNewPassword: any(named: 'confirmNewPassword'),
+          )).thenAnswer((_) async => (access: 'a', refresh: 'r'));
+      await pumpDirect(tester, '/profile/password');
+
+      await tester.enterText(find.byKey(const Key('password_current')), 'OldPass123!');
+      await tester.enterText(find.byKey(const Key('password_new')), 'NewPass456!');
+      await tester.enterText(find.byKey(const Key('password_confirm')), 'NewPass456!');
+      await tester.tap(find.byKey(const Key('password_submit')));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ProfilePage), findsOneWidget);
+    });
+  });
+
   group('Edit Profile', () {
     Future<void> openEdit(WidgetTester tester) async {
       await pumpAccount(tester);
