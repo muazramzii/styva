@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/api_error.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/payment_model.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../shared/widgets/state_message.dart';
 
 /// DEVELOPMENT ONLY. Stands in for a payment gateway's page while only the
 /// mock provider exists. It deliberately looks like a test tool, not a bank:
@@ -31,7 +33,12 @@ class MockPaymentPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('STYVA Test Payment')),
       body: paymentAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Failed to load payment: $error')),
+        error:
+            (error, _) => StateMessage.error(
+              title: 'Could not load this payment',
+              message: extractApiErrorMessage(error),
+              onRetry: () => ref.invalidate(paymentDetailProvider(id)),
+            ),
         data: (payment) => _MockPaymentBody(payment: payment),
       ),
     );
@@ -56,10 +63,7 @@ class _MockPaymentBody extends ConsumerWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: colors.tertiaryContainer,
-            borderRadius: BorderRadius.circular(8),
-          ),
+          decoration: BoxDecoration(color: colors.tertiaryContainer, borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
               Icon(Icons.science_outlined, color: colors.onTertiaryContainer),
@@ -94,10 +98,7 @@ class _MockPaymentBody extends ConsumerWidget {
             onPressed: isLoading ? null : () => _simulate(context, ref, PaymentStatus.failed),
             child: const Text('Simulate Failure'),
           ),
-          if (isLoading) ...[
-            const SizedBox(height: 16),
-            const Center(child: CircularProgressIndicator()),
-          ],
+          if (isLoading) ...[const SizedBox(height: 16), const Center(child: CircularProgressIndicator())],
         ] else ...[
           Text(
             payment.status == PaymentStatus.success
@@ -106,10 +107,7 @@ class _MockPaymentBody extends ConsumerWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () => _leave(context),
-            child: const Text('Back to Order'),
-          ),
+          OutlinedButton(onPressed: () => _leave(context), child: const Text('Back to Order')),
         ],
         if (paymentState is PaymentError) ...[
           const SizedBox(height: 12),
@@ -120,15 +118,11 @@ class _MockPaymentBody extends ConsumerWidget {
   }
 
   Future<void> _simulate(BuildContext context, WidgetRef ref, String outcome) async {
-    final result = await ref
-        .read(paymentProvider(payment.orderId).notifier)
-        .simulateMockOutcome(payment.id, outcome);
+    final result = await ref.read(paymentProvider(payment.orderId).notifier).simulateMockOutcome(payment.id, outcome);
     if (result == null || !context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-        result.status == PaymentStatus.success ? 'Payment successful' : 'Payment failed',
-      ),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.status == PaymentStatus.success ? 'Payment successful' : 'Payment failed')),
+    );
     _leave(context);
   }
 
