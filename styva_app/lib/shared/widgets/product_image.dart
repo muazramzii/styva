@@ -7,13 +7,7 @@ import '../../core/theme/app_typography.dart';
 /// no image or it fails to load (the seeded catalogue currently has only
 /// placeholder filenames, so failures are expected in development).
 class ProductImage extends StatelessWidget {
-  const ProductImage({
-    super.key,
-    required this.url,
-    this.aspectRatio = 3 / 4,
-    this.label,
-    this.borderRadius = 0,
-  });
+  const ProductImage({super.key, required this.url, this.aspectRatio = 3 / 4, this.label, this.borderRadius = 0});
 
   final String? url;
   final double aspectRatio;
@@ -32,18 +26,19 @@ class ProductImage extends StatelessWidget {
         aspectRatio: aspectRatio,
         child: ColoredBox(
           color: AppColors.surfaceMuted,
-          child: image == null || image.isEmpty
-              ? _Fallback(label: label)
-              : Image.network(
-                  image,
-                  fit: BoxFit.cover,
-                  semanticLabel: label,
-                  frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                    if (wasSynchronouslyLoaded || frame != null) return child;
-                    return const SizedBox.expand();
-                  },
-                  errorBuilder: (context, error, stackTrace) => _Fallback(label: label),
-                ),
+          child:
+              image == null || image.isEmpty
+                  ? _Fallback(label: label)
+                  : Image.network(
+                    image,
+                    fit: BoxFit.cover,
+                    semanticLabel: label,
+                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                      if (wasSynchronouslyLoaded || frame != null) return child;
+                      return const SizedBox.expand();
+                    },
+                    errorBuilder: (context, error, stackTrace) => _Fallback(label: label),
+                  ),
         ),
       ),
     );

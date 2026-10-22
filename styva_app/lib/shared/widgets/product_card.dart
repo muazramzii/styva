@@ -36,12 +36,7 @@ class ProductCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
-            Text(
-              product.name,
-              style: textTheme.bodyMedium,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(product.name, style: textTheme.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: AppSpacing.xs),
             Text(formatMoney(product.price), style: AppTypography.price),
           ],

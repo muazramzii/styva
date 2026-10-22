@@ -22,9 +22,9 @@ class StateMessage extends StatelessWidget {
     this.title = 'Something went wrong',
     required this.message,
     required VoidCallback onRetry,
-  })  : icon = Icons.error_outline,
-        actionLabel = 'Retry',
-        onAction = onRetry;
+  }) : icon = Icons.error_outline,
+       actionLabel = 'Retry',
+       onAction = onRetry;
 
   final IconData icon;
   final String title;
