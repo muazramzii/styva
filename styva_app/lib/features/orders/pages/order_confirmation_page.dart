@@ -78,7 +78,8 @@ class OrderConfirmationPage extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.lg),
                     OrderPaymentSection(order: order),
                     const SizedBox(height: AppSpacing.xl),
-                    ElevatedButton(onPressed: () => context.go('/orders/${order.id}'), child: const Text('View Order')),
+                    // Secondary: Pay Now (in the payment section) stays the one primary action.
+                    OutlinedButton(onPressed: () => context.go('/orders/${order.id}'), child: const Text('View Order')),
                     const SizedBox(height: AppSpacing.sm),
                     TextButton(onPressed: () => context.go(AppRoutes.home), child: const Text('Continue Shopping')),
                   ],

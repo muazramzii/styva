@@ -47,7 +47,8 @@ class OrderDetailPage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.xxl),
             children: [
-              Text(order.orderNumber, style: textTheme.headlineSmall),
+              // Sans-serif: the serif's old-style figures make an order number hard to read.
+              Text(order.orderNumber, style: textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xs),
               Text('Placed ${formatDate(order.createdAt)}', style: textTheme.bodySmall),
               const SizedBox(height: AppSpacing.md),

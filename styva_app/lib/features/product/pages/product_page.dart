@@ -14,6 +14,7 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/wishlist_provider.dart';
 import '../../../shared/widgets/product_image.dart';
+import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_message.dart';
 
 class ProductPage extends ConsumerStatefulWidget {
@@ -288,16 +289,16 @@ class _ProductDetailBody extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    flex: 2,
                     child: OutlinedButton(
+                      style: _barButtonPadding,
                       onPressed: isSubmitting ? null : onAddToWishlist,
                       child: const Text('Add to Wishlist', maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    flex: 3,
                     child: ElevatedButton(
+                      style: _barButtonPadding,
                       onPressed: canAddToCart ? onAddToCart : null,
                       child: const Text('Add to Cart', maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
@@ -311,6 +312,10 @@ class _ProductDetailBody extends StatelessWidget {
     );
   }
 }
+
+// Two equal buttons share the bar, so trim the theme's generous side
+// padding to keep both labels whole on a 360dp-wide phone.
+const _barButtonPadding = ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: AppSpacing.md)));
 
 /// "COLOR · Black" style label above an option group.
 class _OptionLabel extends StatelessWidget {
@@ -380,35 +385,10 @@ class _QuantityStepper extends StatelessWidget {
       children: [
         Text('QUANTITY', style: AppTypography.eyebrow),
         const Spacer(),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.outline),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: 'Decrease quantity',
-                onPressed: quantity > 1 ? () => onChanged(quantity - 1) : null,
-                icon: const Icon(Icons.remove, size: 18),
-              ),
-              SizedBox(
-                width: 32,
-                child: Text(
-                  '$quantity',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                  semanticsLabel: 'Quantity $quantity',
-                ),
-              ),
-              IconButton(
-                tooltip: 'Increase quantity',
-                onPressed: quantity < max ? () => onChanged(quantity + 1) : null,
-                icon: const Icon(Icons.add, size: 18),
-              ),
-            ],
-          ),
+        QuantityStepper(
+          quantity: quantity,
+          onDecrease: quantity > 1 ? () => onChanged(quantity - 1) : null,
+          onIncrease: quantity < max ? () => onChanged(quantity + 1) : null,
         ),
       ],
     );

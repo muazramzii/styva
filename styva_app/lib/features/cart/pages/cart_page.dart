@@ -11,6 +11,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../models/cart_item_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../shared/widgets/product_image.dart';
+import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_message.dart';
 
 class CartPage extends ConsumerWidget {
@@ -166,26 +167,7 @@ class _CartItemRow extends StatelessWidget {
                   spacing: AppSpacing.md,
                   runSpacing: AppSpacing.xs,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Decrease quantity',
-                          icon: const Icon(Icons.remove, size: 18),
-                          onPressed: onDecrease,
-                        ),
-                        Text(
-                          '${item.quantity}',
-                          style: textTheme.titleSmall,
-                          semanticsLabel: 'Quantity ${item.quantity}',
-                        ),
-                        IconButton(
-                          tooltip: 'Increase quantity',
-                          icon: const Icon(Icons.add, size: 18),
-                          onPressed: onIncrease,
-                        ),
-                      ],
-                    ),
+                    QuantityStepper(quantity: item.quantity, onDecrease: onDecrease, onIncrease: onIncrease),
                     Text(formatMoney(item.subtotal), style: AppTypography.price),
                   ],
                 ),

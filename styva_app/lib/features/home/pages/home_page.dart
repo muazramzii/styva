@@ -39,6 +39,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
+        // Wordmark on the left, actions on the right: with four actions a
+        // centred title would be pushed off-centre.
+        centerTitle: false,
+        titleSpacing: AppSpacing.page,
         title: const StyvaWordmark(),
         actions: [
           IconButton(
