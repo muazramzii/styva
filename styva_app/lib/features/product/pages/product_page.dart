@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/api_error.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../models/product_model.dart';
 import '../../../models/variant_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/wishlist_provider.dart';
+import '../../../shared/widgets/product_image.dart';
+import '../../../shared/widgets/quantity_stepper.dart';
+import '../../../shared/widgets/state_message.dart';
 
 class ProductPage extends ConsumerStatefulWidget {
   const ProductPage({super.key, required this.productId});
@@ -64,10 +73,7 @@ class _ProductPageState extends ConsumerState<ProductPage> {
     final variant = _variantFor(product, _selectedColor, _selectedSize);
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(cartProvider.notifier).addItem(
-            variantId: variant!.id,
-            quantity: _quantity,
-          );
+      await ref.read(cartProvider.notifier).addItem(variantId: variant!.id, quantity: _quantity);
       _showMessage('Added to cart');
     } catch (e) {
       _showMessage(extractApiErrorMessage(e));
@@ -82,38 +88,52 @@ class _ProductPageState extends ConsumerState<ProductPage> {
 
     if (id == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Product')),
-        body: Center(child: Text('Invalid product id: ${widget.productId}')),
+        appBar: AppBar(),
+        body: StateMessage(
+          icon: Icons.search_off,
+          title: 'Product not found',
+          message: 'This link does not point to a product.',
+          actionLabel: 'Back to Home',
+          onAction: () => context.go(AppRoutes.home),
+        ),
       );
     }
 
     final productAsync = ref.watch(productDetailProvider(id));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Product')),
+      appBar: AppBar(),
       body: productAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(child: Text('Failed to load product: $error')),
-        data: (product) => _ProductDetailBody(
-          product: product,
-          selectedColor: _selectedColor,
-          selectedSize: _selectedSize,
-          quantity: _quantity,
-          isSubmitting: _isSubmitting,
-          onColorSelected: (color) => setState(() {
-            _selectedColor = color;
-            _selectedSize = null;
-            _quantity = 1;
-          }),
-          onSizeSelected: (size) => setState(() {
-            _selectedSize = size;
-            _quantity = 1;
-          }),
-          onQuantityChanged: (quantity) => setState(() => _quantity = quantity),
-          onAddToWishlist: () => _addToWishlist(product),
-          onAddToCart: () => _addToCart(product),
-          selectedVariant: _variantFor(product, _selectedColor, _selectedSize),
-        ),
+        error:
+            (error, stackTrace) => StateMessage.error(
+              title: 'Could not load this product',
+              message: extractApiErrorMessage(error),
+              onRetry: () => ref.invalidate(productDetailProvider(id)),
+            ),
+        data:
+            (product) => _ProductDetailBody(
+              product: product,
+              selectedColor: _selectedColor,
+              selectedSize: _selectedSize,
+              quantity: _quantity,
+              isSubmitting: _isSubmitting,
+              onColorSelected:
+                  (color) => setState(() {
+                    _selectedColor = color;
+                    _selectedSize = null;
+                    _quantity = 1;
+                  }),
+              onSizeSelected:
+                  (size) => setState(() {
+                    _selectedSize = size;
+                    _quantity = 1;
+                  }),
+              onQuantityChanged: (quantity) => setState(() => _quantity = quantity),
+              onAddToWishlist: () => _addToWishlist(product),
+              onAddToCart: () => _addToCart(product),
+              selectedVariant: _variantFor(product, _selectedColor, _selectedSize),
+            ),
       ),
     );
   }
@@ -148,103 +168,229 @@ class _ProductDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final hasVariants = product.variants.isNotEmpty;
     final colors = product.variants.map((v) => v.color).toSet().toList();
-    final sizesForColor = product.variants
-        .where((v) => v.color == selectedColor)
-        .map((v) => v.size)
-        .toSet()
-        .toList();
+    final sizesForColor = product.variants.where((v) => v.color == selectedColor).map((v) => v.size).toSet().toList();
 
-    final canAddToCart = isSubmitting
-        ? false
-        : !hasVariants || (selectedVariant != null && selectedVariant!.stock > 0);
+    final canAddToCart = isSubmitting ? false : !hasVariants || (selectedVariant != null && selectedVariant!.stock > 0);
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(product.name, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 8),
-          Text('RM ${product.price.toStringAsFixed(2)}'),
-          const SizedBox(height: 8),
-          Text('Brand: ${product.brand.name}'),
-          if (hasVariants) ...[
-            const SizedBox(height: 16),
-            Text('Color', style: Theme.of(context).textTheme.titleMedium),
-            Wrap(
-              spacing: 8,
-              children: colors
-                  .map((color) => ChoiceChip(
-                        label: Text(color),
-                        selected: selectedColor == color,
-                        onSelected: (_) => onColorSelected(color),
-                      ))
-                  .toList(),
-            ),
-            const SizedBox(height: 16),
-            Text('Size', style: Theme.of(context).textTheme.titleMedium),
-            if (selectedColor == null)
-              const Text('Select a color first')
-            else
-              Wrap(
-                spacing: 8,
-                children: sizesForColor
-                    .map((size) => ChoiceChip(
-                          label: Text(size),
-                          selected: selectedSize == size,
-                          onSelected: (_) => onSizeSelected(size),
-                        ))
-                    .toList(),
-              ),
-            const SizedBox(height: 16),
-            if (selectedVariant != null) ...[
-              Text(
-                selectedVariant!.stock > 0
-                    ? 'In stock: ${selectedVariant!.stock}'
-                    : 'Out of stock',
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('Quantity'),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: quantity > 1 ? () => onQuantityChanged(quantity - 1) : null,
-                    icon: const Icon(Icons.remove),
+    final description = product.description?.trim() ?? '';
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The photo leads, but never takes more than ~55% of the
+                // screen so the essentials stay in view.
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxHeight = MediaQuery.sizeOf(context).height * 0.55;
+                    final height = (constraints.maxWidth * 5 / 4).clamp(0.0, maxHeight);
+                    return SizedBox(
+                      height: height,
+                      child: ProductImage(
+                        url: product.image,
+                        label: product.brand.name,
+                        aspectRatio: constraints.maxWidth / height,
+                      ),
+                    );
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.xl, AppSpacing.page, AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.brand.name.toUpperCase(), style: AppTypography.eyebrow),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(product.name, style: textTheme.headlineMedium),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(formatMoney(product.price), style: AppTypography.price.copyWith(fontSize: 18)),
+                      if (hasVariants) ...[
+                        const SizedBox(height: AppSpacing.xl),
+                        _OptionLabel(label: 'Color', value: selectedColor),
+                        const SizedBox(height: AppSpacing.sm),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children:
+                              colors
+                                  .map(
+                                    (color) => ChoiceChip(
+                                      label: Text(color),
+                                      selected: selectedColor == color,
+                                      onSelected: (_) => onColorSelected(color),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _OptionLabel(label: 'Size', value: selectedSize),
+                        const SizedBox(height: AppSpacing.sm),
+                        if (selectedColor == null)
+                          Text(
+                            'Select a color first',
+                            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                          )
+                        else
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.sm,
+                            children:
+                                sizesForColor
+                                    .map(
+                                      (size) => ChoiceChip(
+                                        label: Text(size),
+                                        selected: selectedSize == size,
+                                        onSelected: (_) => onSizeSelected(size),
+                                      ),
+                                    )
+                                    .toList(),
+                          ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _Availability(variant: selectedVariant),
+                        if (selectedVariant != null && selectedVariant!.stock > 0) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          _QuantityStepper(
+                            quantity: quantity,
+                            max: selectedVariant!.stock,
+                            onChanged: onQuantityChanged,
+                          ),
+                        ],
+                      ],
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xl),
+                        const Divider(),
+                        const SizedBox(height: AppSpacing.lg),
+                        Text('DETAILS', style: AppTypography.eyebrow),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(description, style: textTheme.bodyMedium),
+                      ],
+                    ],
                   ),
-                  Text('$quantity'),
-                  IconButton(
-                    onPressed: quantity < selectedVariant!.stock
-                        ? () => onQuantityChanged(quantity + 1)
-                        : null,
-                    icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: _barButtonPadding,
+                      onPressed: isSubmitting ? null : onAddToWishlist,
+                      child: const Text('Add to Wishlist', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: _barButtonPadding,
+                      onPressed: canAddToCart ? onAddToCart : null,
+                      child: const Text('Add to Cart', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
                   ),
                 ],
               ),
-            ],
-          ],
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: isSubmitting ? null : onAddToWishlist,
-                  child: const Text('Add to Wishlist'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: canAddToCart ? onAddToCart : null,
-                  child: const Text('Add to Cart'),
-                ),
-              ),
-            ],
+            ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// Two equal buttons share the bar, so trim the theme's generous side
+// padding to keep both labels whole on a 360dp-wide phone.
+const _barButtonPadding = ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: AppSpacing.md)));
+
+/// "COLOR · Black" style label above an option group.
+class _OptionLabel extends StatelessWidget {
+  const _OptionLabel({required this.label, required this.value});
+
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        text: label.toUpperCase(),
+        style: AppTypography.eyebrow,
+        children: [
+          if (value != null)
+            TextSpan(text: '  ·  $value', style: AppTypography.eyebrow.copyWith(color: AppColors.charcoal)),
         ],
       ),
+    );
+  }
+}
+
+class _Availability extends StatelessWidget {
+  const _Availability({required this.variant});
+
+  final VariantModel? variant;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final v = variant;
+    if (v == null) {
+      return Text('Choose a color and size to see availability', style: textTheme.bodySmall);
+    }
+    final inStock = v.stock > 0;
+    return Row(
+      children: [
+        Icon(
+          inStock ? Icons.check_circle_outline : Icons.remove_circle_outline,
+          size: 18,
+          color: inStock ? AppColors.success : AppColors.error,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          inStock ? 'In stock: ${v.stock}' : 'Out of stock',
+          style: textTheme.bodyMedium?.copyWith(
+            color: inStock ? AppColors.success : AppColors.error,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuantityStepper extends StatelessWidget {
+  const _QuantityStepper({required this.quantity, required this.max, required this.onChanged});
+
+  final int quantity;
+  final int max;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text('QUANTITY', style: AppTypography.eyebrow),
+        const Spacer(),
+        QuantityStepper(
+          quantity: quantity,
+          onDecrease: quantity > 1 ? () => onChanged(quantity - 1) : null,
+          onIncrease: quantity < max ? () => onChanged(quantity + 1) : null,
+        ),
+      ],
     );
   }
 }

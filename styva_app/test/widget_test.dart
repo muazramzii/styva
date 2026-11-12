@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:styva_app/features/auth/pages/splash_page.dart';
 
 void main() {
-  testWidgets('SplashPage renders its title', (WidgetTester tester) async {
+  testWidgets('SplashPage shows the STYVA wordmark', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
@@ -14,6 +14,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Splash'), findsOneWidget);
+    expect(find.text('STYVA'), findsOneWidget);
+    expect(find.bySemanticsLabel('Loading'), findsOneWidget);
   });
 }
