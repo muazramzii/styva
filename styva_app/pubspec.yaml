@@ -52,3 +52,24 @@ flutter:
     - assets/brands/
     - assets/banners/
     - assets/icons/
+    # Font licences, registered with LicenseRegistry in main.dart.
+    - assets/fonts/OFL-CormorantGaramond.txt
+    - assets/fonts/OFL-Lato.txt
+
+  # Brand typography (SIL Open Font License 1.1, from github.com/google/fonts).
+  # Cormorant Garamond is a variable font: headings set the weight through
+  # TextStyle.fontVariations (see AppTypography).
+  fonts:
+    - family: CormorantGaramond
+      fonts:
+        - asset: assets/fonts/CormorantGaramond-Variable.ttf
+    - family: Lato
+      fonts:
+        - asset: assets/fonts/Lato-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Lato-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Lato-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Lato-Bold.ttf
+          weight: 700
