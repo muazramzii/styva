@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -9,8 +10,41 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'email', 'created_at']
+        fields = ['id', 'full_name', 'email', 'phone', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """What a user may change about themselves. Email is the login identifier
+    and stays read-only; anything else in the request is ignored."""
+
+    class Meta:
+        model = User
+        fields = ['full_name', 'phone']
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    confirm_new_password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate_current_password(self, value):
+        if not self.context['request'].user.check_password(value):
+            raise serializers.ValidationError('Current password is incorrect.')
+        return value
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_new_password']:
+            raise serializers.ValidationError({'confirm_new_password': ['Passwords do not match.']})
+        if attrs['new_password'] == attrs['current_password']:
+            raise serializers.ValidationError(
+                {'new_password': ['New password must be different from your current password.']},
+            )
+        try:
+            validate_password(attrs['new_password'], user=self.context['request'].user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({'new_password': list(error.messages)}) from error
+        return attrs
 
 
 class RegisterSerializer(serializers.ModelSerializer):

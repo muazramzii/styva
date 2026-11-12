@@ -12,7 +12,8 @@ This repository contains:
 - **Phase 1.3** delivered Authentication & User Session: JWT register/login/refresh/logout (with blacklisting), secure token persistence and auto-login in Flutter, route guards, and functional Login/Register screens.
 - **Phase 1.4** delivered Wishlist & Cart Foundation: authenticated wishlist and cart APIs with server-authoritative pricing/stock, and functional Flutter Wishlist/Cart screens with variant selection on Product Detail.
 - **Phase 1.5** delivered Checkout & Order Foundation: transactional checkout with stock locking and deduction, price-snapshotted orders, order history, and the Flutter checkout → confirmation → orders flow.
-- **Phase 1.6** delivers Payment Foundation: a provider-agnostic payment model and API (initiation, status, signed webhooks, idempotent state transitions), a development-only mock provider, and the Flutter Pay Now / Try Again flow. No real payment gateway is integrated yet.
+- **Phase 1.6** delivered Payment Foundation: a provider-agnostic payment model and API (initiation, status, signed webhooks, idempotent state transitions), a development-only mock provider, and the Flutter Pay Now / Try Again flow. No real payment gateway is integrated yet.
+- **Phase 1.7** delivers User Profile & Address Management: profile editing, authenticated password change, a saved-address book with a single default address, and checkout from a saved address (orders keep their own copy of the shipping address).
 
 ## Prerequisites
 
@@ -76,8 +77,10 @@ API is available at `http://localhost:8000/api/`, Django admin at `http://localh
 styva_backend/
 ├── config/                 # Django project settings, root URLs
 ├── apps/
-│   ├── authentication/     # JWT register/login/refresh/me
-│   ├── users/               # Custom User model
+│   ├── authentication/     # JWT register/login/refresh/me, profile update, password change
+│   ├── users/               # Custom User model (email login, full name, phone)
+│   ├── addresses/           # Saved shipping addresses (one default per user)
+│   ├── common/              # Shared phone/postcode validators
 │   ├── brands/
 │   ├── categories/
 │   ├── products/            # Product, ProductVariant
@@ -97,6 +100,8 @@ styva_backend/
 | POST | `/api/auth/login` | No |
 | POST | `/api/auth/refresh` | No |
 | GET | `/api/auth/me` | Yes |
+| PATCH | `/api/auth/me` | Yes (name and phone only) |
+| POST | `/api/auth/change-password` | Yes |
 | POST | `/api/auth/logout` | Yes |
 | GET | `/api/brands/` | No |
 | GET | `/api/brands/{id}/` | No |
@@ -114,6 +119,11 @@ styva_backend/
 | POST | `/api/cart/items` | Yes |
 | PATCH | `/api/cart/items/{id}` | Yes |
 | DELETE | `/api/cart/items/{id}` | Yes |
+| GET | `/api/addresses` | Yes |
+| POST | `/api/addresses` | Yes |
+| GET | `/api/addresses/{id}` | Yes (own addresses only) |
+| PATCH | `/api/addresses/{id}` | Yes (own addresses only) |
+| DELETE | `/api/addresses/{id}` | Yes (own addresses only) |
 | GET | `/api/orders/checkout` | Yes (server-computed checkout preview) |
 | POST | `/api/orders/checkout` | Yes |
 | GET | `/api/orders` | Yes |
@@ -142,6 +152,13 @@ Product create/update accepts a nested `variants` array (`size`, `color`, `stock
 - `/api/auth/logout` blacklists the given refresh token via SimpleJWT's token blacklist — it can never be used again, including to obtain a new access token.
 - Refresh tokens rotate on every use (`ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION`), so a stolen refresh token stops working the moment the legitimate client refreshes.
 
+### Profile & Password
+
+- `GET /api/auth/me` returns `id`, `full_name`, `email`, `phone`, `created_at` — never the password.
+- `PATCH /api/auth/me` updates only `full_name` (required, max 255) and `phone` (optional; digits with an optional `+`, spaces or dashes). Email is the login identifier and is read-only; `email`, `password`, `is_staff` and similar fields in the request are ignored. `PUT` is not allowed.
+- `POST /api/auth/change-password` takes `current_password`, `new_password` and `confirm_new_password`. The current password must be correct, the confirmation must match, the new password must differ from the current one, and it must pass Django's password validators (length, common, all-numeric, similarity to the user's details). It's stored with Django's password hashing.
+- **Sessions after a password change:** every refresh token the user holds is blacklisted (SimpleJWT records all of them, including rotated ones), so no other device can renew its session. The response returns a fresh `access`/`refresh` pair so the device that made the change stays signed in. Access tokens already issued to other devices stay valid until they expire (`JWT_ACCESS_TOKEN_LIFETIME_MINUTES`, default 60) — that's inherent to stateless JWTs.
+
 ### Wishlist & Cart
 
 - Both are scoped to the authenticated user; one user can never see or modify another user's wishlist or cart (enforced at the queryset level, not just in the client).
@@ -149,9 +166,22 @@ Product create/update accepts a nested `variants` array (`size`, `color`, `stock
 - Adding a variant already in the cart merges into the existing `CartItem` (quantity accumulates) instead of creating a duplicate row.
 - `subtotal`/`total` are always computed server-side from the current `ProductVariant.stock` and `Product.price` — the client cannot influence price, and a later price change is reflected on the next fetch. Quantity must be `> 0` and can never exceed current stock, checked both on add (accounting for an already-existing item's quantity) and on update.
 
+### Saved Addresses
+
+- Every address endpoint only sees the signed-in user's addresses (enforced in the queryset). Another user's address id returns `404` for get, edit and delete, and the owner always comes from the request, never the body.
+- Fields: `recipient_name`, `phone`, `address_line_1`, `address_line_2` (optional), `city`, `state`, `postcode`, `country`, `is_default`. `state` must be one of the 13 Malaysian states or the 3 federal territories (`Kuala Lumpur`, `Labuan`, `Putrajaya`); `postcode` is exactly 5 digits (leading zeros kept, e.g. `01000`); `country` is `Malaysia`, the only country shipped to for now.
+- **Default address rules** (`apps/addresses/services.py`):
+  - A user with any saved address always has exactly one default.
+  - The first address a user saves becomes the default, whatever `is_default` the client sent.
+  - Creating or editing an address with `is_default: true` clears the previous default.
+  - The current default can't be switched off directly (`400`); make another address the default instead. This keeps checkout always able to pre-select an address.
+  - Deleting the default promotes the most recently created remaining address. Deleting the last address leaves none.
+- Every address write locks the user's row, so concurrent requests can't produce two defaults; a partial unique constraint (`one_default_address_per_user`) is the database-level backstop.
+
 ### Checkout & Orders
 
-- `POST /api/orders/checkout` accepts **only** a `shipping_address` (Malaysian 5-digit postcode). Subtotal, shipping fee, total, and unit prices are always calculated by the backend from current database values; any such fields in the request are ignored.
+- `POST /api/orders/checkout` accepts **only** where to ship: either `address_id` (one of the user's saved addresses) or an inline `shipping_address` — exactly one. Another user's address id, or an unknown one, is rejected with `400`. Subtotal, shipping fee, total, and unit prices are always calculated by the backend from current database values; any such fields in the request are ignored.
+- **Order address snapshot:** the shipping address is copied into the order's own `shipping_*` columns when the order is created. Orders never reference the saved address, so editing or deleting it later never changes an existing order.
 - Checkout runs in a single database transaction. The user's cart row is locked (so a double-tapped "Place Order" can't create two orders), and every purchased variant is locked in id order before stock is read (so two buyers of the last units can't both succeed — the loser gets a `409`). Empty cart → `400`.
 - **Stock is deducted when the order is created** (status `pending`, payment `pending`). There is no reservation/expiry yet, so an unpaid, cancelled, or payment-failed order does not return stock automatically. Phase 1.6 keeps this rule unchanged; restocking is a later policy decision.
 - On success the purchased cart items are removed. On any failure nothing is persisted: no order, no items, no stock change, cart intact.
@@ -197,11 +227,11 @@ styva_app/lib/
 ├── core/
 │   ├── router/       # GoRouter configuration + auth route guard
 │   ├── theme/        # AppTheme, AppColors, AppTypography (Material 3)
-│   ├── constants/    # App-wide and API constants
+│   ├── constants/    # App-wide and API constants, Malaysian states
 │   └── utils/        # API error message extraction
-├── models/            # Product/User/Wishlist/Cart/Order/ShippingAddress/Checkout/Payment models (Freezed + json_serializable)
-├── services/          # API client (Dio), Product/Auth/Wishlist/Cart/Checkout/Order/Payment services, TokenStorage, AuthInterceptor
-├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, checkoutProvider, ordersProvider, paymentProvider, ...)
+├── models/            # Product/User/Wishlist/Cart/Order/ShippingAddress/Checkout/Payment/Address models (Freezed + json_serializable)
+├── services/          # API client (Dio), Product/Auth/Wishlist/Cart/Checkout/Order/Payment/Address services, TokenStorage, AuthInterceptor
+├── providers/         # Riverpod providers (productProvider, authProvider, wishlistProvider, cartProvider, checkoutProvider, ordersProvider, paymentProvider, addressesProvider, editProfileProvider, ...)
 ├── features/
 │   ├── auth/          # Splash, Login, Register
 │   ├── home/
@@ -212,7 +242,8 @@ styva_app/lib/
 │   ├── checkout/
 │   ├── orders/        # Orders, Order Detail, Order Confirmation, payment section
 │   ├── payment/       # Development-only STYVA Test Payment screen
-│   └── profile/
+│   ├── addresses/     # Saved Addresses list and add/edit form
+│   └── profile/       # Account, Edit Profile, Change Password
 ├── shared/
 │   ├── widgets/
 │   └── components/
@@ -236,23 +267,31 @@ styva_app/lib/
 | `/orders` | OrdersPage | Yes |
 | `/orders/:id` | OrderDetailPage | Yes |
 | `/payments/:id/mock` | MockPaymentPage (development only — "STYVA Test Payment") | Yes |
-| `/profile` | ProfilePage (includes the logout button) | Yes |
+| `/profile` | ProfilePage — the Account screen (profile, orders, addresses, password, logout) | Yes |
+| `/profile/edit` | EditProfilePage | Yes |
+| `/profile/password` | ChangePasswordPage | Yes |
+| `/addresses` | AddressListPage | Yes |
+| `/addresses/new` | AddressFormPage (add) | Yes |
+| `/addresses/:id/edit` | AddressFormPage (edit) | Yes |
 
 ### Authentication flow
 
 - Tokens are persisted in `flutter_secure_storage` (never `SharedPreferences`); `TokenStorage` is the single place that reads/writes them.
 - On startup, `authProvider` checks for a stored access token and calls `/api/auth/me` to restore the session (`AuthState`: `loading` → `authenticated`/`unauthenticated`). The splash screen is shown while this resolves, so an unauthenticated user is never briefly shown a protected screen.
-- `AuthInterceptor` attaches the access token to every request and, on a `401`, transparently refreshes and retries once. Concurrent `401`s share a single in-flight refresh instead of racing each other. If the refresh itself fails, tokens are cleared and the app reactively drops back to `unauthenticated`.
+- `AuthInterceptor` attaches the access token to every request and, on a `401`, transparently refreshes and retries once, storing the rotated refresh token the backend returns. Concurrent `401`s share a single in-flight refresh instead of racing each other. If the refresh itself fails, tokens are cleared and the app reactively drops back to `unauthenticated`.
+- The router re-checks its auth redirect only when the auth *status* changes (signed in or out), not when the signed-in user's details change, so updating the profile never disturbs navigation.
+- After a profile update, the server's copy of the user replaces the one in `authProvider`, so no screen keeps showing stale profile data. After a password change, the fresh token pair is stored.
 - Logging out calls `/api/auth/logout` (best-effort — the local session is cleared either way) and clears stored tokens.
 
 ## Scope
 
 - Home fetches and lists real products; Product Detail supports color/size variant selection, Add to Wishlist, and Add to Cart with success/out-of-stock/invalid-selection/API-failure feedback
 - Wishlist, Cart, Checkout, Order Confirmation, Orders, and Order Detail screens are functional; checkout places the order with payment `pending`
+- Account screen with Edit Profile, Change Password and Saved Addresses (add, edit, delete, set default). Checkout lists saved addresses with the default pre-selected and only allows Place Order once an address is chosen; a new address can be added from checkout and is selected on return
 - Order Detail and Order Confirmation show Payment Pending (Pay Now), Paid, or Payment Failed (Try Again). Pay Now opens the development-only "STYVA Test Payment" screen with Simulate Success / Simulate Failure — **no real payment gateway, card processing, or banking integration yet**
-- No saved address book (the shipping address is entered at checkout)
+- No maps/location lookup for addresses, and shipping is Malaysia-only
 - No product images (placeholder filenames only, e.g. `UNQ001.png`) or hand-written hardcoded products (generated via `seed_products`)
-- No social/Google/Apple/biometric login, password reset, email verification, or profile editing yet
+- No social/Google/Apple/biometric login, password reset, email verification, or email change yet
 - No AI Virtual Stylist or ML recommendations
 - No custom Django admin beyond defaults
 - No reviews

@@ -3,7 +3,6 @@ import 'package:styva_app/models/checkout_request_model.dart';
 import 'package:styva_app/models/checkout_summary_model.dart';
 import 'package:styva_app/models/order_item_model.dart';
 import 'package:styva_app/models/order_model.dart';
-import 'package:styva_app/models/shipping_address_model.dart';
 
 import '../fixtures/order_fixtures.dart';
 
@@ -51,29 +50,16 @@ void main() {
   });
 
   group('CheckoutRequestModel', () {
-    test('toJson produces only the shipping address, nested in snake_case', () {
-      const request = CheckoutRequestModel(
-        shippingAddress: ShippingAddressModel(
-          fullName: 'Test Buyer',
-          phone: '0123456789',
-          addressLine1: '1 Jalan Ujian',
-          city: 'Skudai',
-          state: 'Johor',
-          postcode: '81300',
-        ),
-      );
+    test('toJson sends only the saved address id -- never prices or totals', () {
+      const request = CheckoutRequestModel(addressId: 7);
 
-      final json = request.toJson();
-
-      expect(json.keys, ['shipping_address']);
-      expect(json['shipping_address'], shippingAddressJson);
+      expect(request.toJson(), {'address_id': 7});
     });
 
     test('fromJson round-trips', () {
-      final request = CheckoutRequestModel.fromJson({'shipping_address': shippingAddressJson});
+      final request = CheckoutRequestModel.fromJson({'address_id': 7});
 
-      expect(request.shippingAddress.addressLine1, '1 Jalan Ujian');
-      expect(request.shippingAddress.addressLine2, '');
+      expect(request.addressId, 7);
     });
   });
 

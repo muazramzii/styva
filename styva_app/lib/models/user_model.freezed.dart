@@ -25,6 +25,7 @@ mixin _$UserModel {
   @JsonKey(name: 'full_name')
   String get fullName => throw _privateConstructorUsedError;
   String get email => throw _privateConstructorUsedError;
+  String get phone => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
   DateTime get createdAt => throw _privateConstructorUsedError;
 
@@ -47,6 +48,7 @@ abstract class $UserModelCopyWith<$Res> {
     int id,
     @JsonKey(name: 'full_name') String fullName,
     String email,
+    String phone,
     @JsonKey(name: 'created_at') DateTime createdAt,
   });
 }
@@ -69,6 +71,7 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
     Object? id = null,
     Object? fullName = null,
     Object? email = null,
+    Object? phone = null,
     Object? createdAt = null,
   }) {
     return _then(
@@ -87,6 +90,11 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
                 null == email
                     ? _value.email
                     : email // ignore: cast_nullable_to_non_nullable
+                        as String,
+            phone:
+                null == phone
+                    ? _value.phone
+                    : phone // ignore: cast_nullable_to_non_nullable
                         as String,
             createdAt:
                 null == createdAt
@@ -112,6 +120,7 @@ abstract class _$$UserModelImplCopyWith<$Res>
     int id,
     @JsonKey(name: 'full_name') String fullName,
     String email,
+    String phone,
     @JsonKey(name: 'created_at') DateTime createdAt,
   });
 }
@@ -133,6 +142,7 @@ class __$$UserModelImplCopyWithImpl<$Res>
     Object? id = null,
     Object? fullName = null,
     Object? email = null,
+    Object? phone = null,
     Object? createdAt = null,
   }) {
     return _then(
@@ -152,6 +162,11 @@ class __$$UserModelImplCopyWithImpl<$Res>
                 ? _value.email
                 : email // ignore: cast_nullable_to_non_nullable
                     as String,
+        phone:
+            null == phone
+                ? _value.phone
+                : phone // ignore: cast_nullable_to_non_nullable
+                    as String,
         createdAt:
             null == createdAt
                 ? _value.createdAt
@@ -169,6 +184,7 @@ class _$UserModelImpl implements _UserModel {
     required this.id,
     @JsonKey(name: 'full_name') required this.fullName,
     required this.email,
+    this.phone = '',
     @JsonKey(name: 'created_at') required this.createdAt,
   });
 
@@ -183,12 +199,15 @@ class _$UserModelImpl implements _UserModel {
   @override
   final String email;
   @override
+  @JsonKey()
+  final String phone;
+  @override
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
 
   @override
   String toString() {
-    return 'UserModel(id: $id, fullName: $fullName, email: $email, createdAt: $createdAt)';
+    return 'UserModel(id: $id, fullName: $fullName, email: $email, phone: $phone, createdAt: $createdAt)';
   }
 
   @override
@@ -200,13 +219,15 @@ class _$UserModelImpl implements _UserModel {
             (identical(other.fullName, fullName) ||
                 other.fullName == fullName) &&
             (identical(other.email, email) || other.email == email) &&
+            (identical(other.phone, phone) || other.phone == phone) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, fullName, email, createdAt);
+  int get hashCode =>
+      Object.hash(runtimeType, id, fullName, email, phone, createdAt);
 
   /// Create a copy of UserModel
   /// with the given fields replaced by the non-null parameter values.
@@ -227,6 +248,7 @@ abstract class _UserModel implements UserModel {
     required final int id,
     @JsonKey(name: 'full_name') required final String fullName,
     required final String email,
+    final String phone,
     @JsonKey(name: 'created_at') required final DateTime createdAt,
   }) = _$UserModelImpl;
 
@@ -240,6 +262,8 @@ abstract class _UserModel implements UserModel {
   String get fullName;
   @override
   String get email;
+  @override
+  String get phone;
   @override
   @JsonKey(name: 'created_at')
   DateTime get createdAt;

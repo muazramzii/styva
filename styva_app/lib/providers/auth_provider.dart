@@ -80,6 +80,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Replaces the signed-in user with the server's latest copy (e.g. after a
+  /// profile update) so no screen keeps showing stale profile data.
+  void userUpdated(UserModel user) {
+    if (state is AuthAuthenticated) {
+      state = AuthState.authenticated(user);
+    }
+  }
+
   Future<void> logout() async {
     final refreshToken = await _tokenStorage.getRefreshToken();
     if (refreshToken != null) {

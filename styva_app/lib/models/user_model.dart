@@ -9,6 +9,7 @@ class UserModel with _$UserModel {
     required int id,
     @JsonKey(name: 'full_name') required String fullName,
     required String email,
+    @Default('') String phone,
     @JsonKey(name: 'created_at') required DateTime createdAt,
   }) = _UserModel;
 

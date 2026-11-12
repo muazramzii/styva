@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:styva_app/models/checkout_request_model.dart';
-import 'package:styva_app/models/shipping_address_model.dart';
 import 'package:styva_app/services/checkout_service.dart';
 import 'package:styva_app/services/order_service.dart';
 
@@ -23,16 +22,7 @@ DioException _error(int statusCode, Object? data) {
   );
 }
 
-const _request = CheckoutRequestModel(
-  shippingAddress: ShippingAddressModel(
-    fullName: 'Test Buyer',
-    phone: '0123456789',
-    addressLine1: '1 Jalan Ujian',
-    city: 'Skudai',
-    state: 'Johor',
-    postcode: '81300',
-  ),
-);
+const _request = CheckoutRequestModel(addressId: 7);
 
 void main() {
   late MockDio dio;
@@ -41,7 +31,7 @@ void main() {
   setUp(() => dio = MockDio());
 
   group('CheckoutService', () {
-    test('checkout posts only the shipping address and parses the created order', () async {
+    test('checkout posts only the saved address id and parses the created order', () async {
       when(() => dio.post(any(), data: any(named: 'data')))
           .thenAnswer((_) async => _response(orderDetailJson, statusCode: 201));
 
@@ -51,7 +41,7 @@ void main() {
       final body = verify(() => dio.post('/orders/checkout', data: captureAny(named: 'data')))
           .captured
           .single as Map<String, dynamic>;
-      expect(body, {'shipping_address': shippingAddressJson});
+      expect(body, {'address_id': 7});
     });
 
     test('getSummary fetches the server-computed preview', () async {
