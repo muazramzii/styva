@@ -50,6 +50,9 @@ class WishlistPage extends ConsumerWidget {
             itemBuilder: (context, index) {
               final product = items[index].product;
               return InkWell(
+                // "Choose size" below is the labelled control for this; the
+                // row tap is a convenience and would be announced twice.
+                excludeFromSemantics: true,
                 onTap: () => context.push('/product/${product.id}'),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
