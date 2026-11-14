@@ -1,31 +1,56 @@
-from django.core.validators import RegexValidator
 from rest_framework import serializers
 
+from apps.addresses.models import Address
 from apps.cart.serializers import CartItemSerializer
+from apps.common.validators import phone_validator, postcode_validator
 
 from .models import Order, OrderItem
 
 
 class ShippingAddressSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
-    phone = serializers.CharField(
-        max_length=32,
-        validators=[RegexValidator(r'^\+?[0-9][0-9\s-]{6,19}$', 'Enter a valid phone number.')],
-    )
+    phone = serializers.CharField(max_length=32, validators=[phone_validator])
     address_line_1 = serializers.CharField(max_length=255)
     address_line_2 = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
     city = serializers.CharField(max_length=128)
     state = serializers.CharField(max_length=128)
-    postcode = serializers.CharField(
-        max_length=16,
-        validators=[RegexValidator(r'^\d{5}$', 'Enter a valid 5-digit postcode.')],
-    )
+    postcode = serializers.CharField(max_length=16, validators=[postcode_validator])
 
 
 class CheckoutSerializer(serializers.Serializer):
-    """The only thing the client may supply at checkout is where to ship.
-    Any price/total/shipping fields in the request are ignored."""
-    shipping_address = ShippingAddressSerializer()
+    """The only thing the client may supply at checkout is where to ship:
+    either one of their saved addresses (``address_id``) or an address typed
+    in (``shipping_address``) -- exactly one. Any price/total/shipping fields
+    in the request are ignored.
+
+    Either way, ``validated_data['shipping_address']`` is a plain dict that
+    checkout copies into the order, so the order never depends on the saved
+    address afterwards."""
+    address_id = serializers.IntegerField(required=False, min_value=1)
+    shipping_address = ShippingAddressSerializer(required=False)
+
+    def validate(self, attrs):
+        address_id = attrs.pop('address_id', None)
+        if (address_id is None) == ('shipping_address' not in attrs):
+            raise serializers.ValidationError(
+                'Provide either address_id or shipping_address.', code='address_required',
+            )
+        if address_id is not None:
+            # Only the requesting user's own addresses; anyone else's id is
+            # indistinguishable from one that doesn't exist.
+            address = Address.objects.filter(id=address_id, user=self.context['request'].user).first()
+            if address is None:
+                raise serializers.ValidationError({'address_id': ['Address not found.']})
+            attrs['shipping_address'] = {
+                'full_name': address.recipient_name,
+                'phone': address.phone,
+                'address_line_1': address.address_line_1,
+                'address_line_2': address.address_line_2,
+                'city': address.city,
+                'state': address.state,
+                'postcode': address.postcode,
+            }
+        return attrs
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:styva_app/core/router/app_router.dart';
 import 'package:styva_app/models/user_model.dart';
 import 'package:styva_app/providers/auth_provider.dart';
@@ -115,6 +119,57 @@ void main() {
 
       final stable = resolveAuthRedirect(authState: unauthenticated, location: afterLogout!);
       expect(stable, isNull);
+    });
+  });
+
+  group('authStatusChanges', () {
+    test('emits only when the kind of auth state changes', () async {
+      final updatedUser = user.copyWith(fullName: 'Jane Updated', phone: '0123456789');
+      final states = Stream<AuthState>.fromIterable([
+        loading,
+        authenticated,
+        AuthState.authenticated(updatedUser), // profile update: same status
+        unauthenticated,
+      ]);
+
+      expect(
+        await authStatusChanges(states).toList(),
+        [loading.runtimeType, authenticated.runtimeType, unauthenticated.runtimeType],
+      );
+    });
+
+    testWidgets('a profile update does not undo a pop on a pushed page', (tester) async {
+      final controller = StreamController<AuthState>();
+      addTearDown(controller.close);
+      final router = GoRouter(
+        initialLocation: '/profile',
+        refreshListenable: GoRouterRefreshStream(authStatusChanges(controller.stream)),
+        routes: [
+          GoRoute(path: '/profile', builder: (_, __) => const Text('account')),
+          GoRoute(
+            path: '/profile/edit',
+            builder: (context, __) => TextButton(
+              onPressed: () {
+                // What EditProfileNotifier does on success: update the user,
+                // then the page pops itself.
+                controller.add(AuthState.authenticated(user.copyWith(fullName: 'Jane Updated')));
+                context.pop();
+              },
+              child: const Text('save'),
+            ),
+          ),
+        ],
+      );
+      controller.add(authenticated);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      router.push('/profile/edit');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('account'), findsOneWidget);
+      expect(find.text('save'), findsNothing);
     });
   });
 }

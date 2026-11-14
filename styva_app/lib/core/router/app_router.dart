@@ -1,9 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/addresses/pages/address_form_page.dart';
+import '../../features/addresses/pages/address_list_page.dart';
 import '../../features/auth/pages/login_page.dart';
 import '../../features/auth/pages/register_page.dart';
 import '../../features/auth/pages/splash_page.dart';
@@ -16,6 +18,8 @@ import '../../features/orders/pages/order_detail_page.dart';
 import '../../features/orders/pages/orders_page.dart';
 import '../../features/payment/pages/mock_payment_page.dart';
 import '../../features/product/pages/product_page.dart';
+import '../../features/profile/pages/change_password_page.dart';
+import '../../features/profile/pages/edit_profile_page.dart';
 import '../../features/profile/pages/profile_page.dart';
 import '../../features/wishlist/pages/wishlist_page.dart';
 import '../../providers/auth_provider.dart';
@@ -37,6 +41,23 @@ abstract class AppRoutes {
   static const String orderConfirmation = '/order-confirmation/:id';
   static const String mockPayment = '/payments/:id/mock';
   static const String profile = '/profile';
+  static const String editProfile = '/profile/edit';
+  static const String changePassword = '/profile/password';
+  static const String addresses = '/addresses';
+  static const String addressNew = '/addresses/new';
+  static const String addressEdit = '/addresses/:id/edit';
+}
+
+/// Leaves a pushed screen: pops (with [result]) when there is a screen to go
+/// back to, otherwise goes to [fallback]. A page opened directly by URL (e.g.
+/// a web refresh on /profile/edit) has nothing beneath it, and a bare
+/// `context.pop()` would throw there.
+void popOrGo<T extends Object?>(BuildContext context, String fallback, [T? result]) {
+  if (context.canPop()) {
+    context.pop(result);
+  } else {
+    context.go(fallback);
+  }
 }
 
 /// Pure redirect decision, kept separate from GoRouter wiring so it can be
@@ -63,6 +84,15 @@ String? resolveAuthRedirect({required AuthState authState, required String locat
   return null;
 }
 
+/// Emits only when the kind of auth state changes (loading → authenticated,
+/// authenticated → unauthenticated, ...). The redirect depends on nothing
+/// else, and refreshing the router on every emission -- e.g. when a profile
+/// update replaces the signed-in user -- would rebuild the route stack
+/// mid-navigation and undo a pending pop.
+Stream<Type> authStatusChanges(Stream<AuthState> states) {
+  return states.map((state) => state.runtimeType).distinct();
+}
+
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
@@ -83,7 +113,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    refreshListenable: GoRouterRefreshStream(authNotifier.stream),
+    refreshListenable: GoRouterRefreshStream(authStatusChanges(authNotifier.stream)),
     redirect: (context, state) {
       return resolveAuthRedirect(
         authState: ref.read(authProvider),
@@ -163,6 +193,31 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.profile,
         name: 'profile',
         builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        name: 'edit-profile',
+        builder: (context, state) => const EditProfilePage(),
+      ),
+      GoRoute(
+        path: AppRoutes.changePassword,
+        name: 'change-password',
+        builder: (context, state) => const ChangePasswordPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.addresses,
+        name: 'addresses',
+        builder: (context, state) => const AddressListPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.addressNew,
+        name: 'address-new',
+        builder: (context, state) => const AddressFormPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.addressEdit,
+        name: 'address-edit',
+        builder: (context, state) => AddressFormPage(addressId: state.pathParameters['id']!),
       ),
     ],
   );

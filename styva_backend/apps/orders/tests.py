@@ -11,6 +11,7 @@ from django.test import TransactionTestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from apps.addresses.models import Address
 from apps.brands.models import Brand
 from apps.cart.models import Cart, CartItem
 from apps.categories.models import Category
@@ -483,3 +484,105 @@ class OrderNumberTestCase(APITestCase):
         numbers = {services.generate_order_number() for _ in range(50)}
         self.assertTrue(all(re.fullmatch(r'STYVA-\d{8}-[A-Z2-9]{6}', n) for n in numbers))
         self.assertGreater(len(numbers), 45)
+
+
+class CheckoutWithSavedAddressTestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='buyer@example.com', password='CorrectPass123!', full_name='Buyer',
+        )
+        _, _, self.shirt_m, _ = make_catalog()
+        add_to_cart(self.user, self.shirt_m, 1)
+        self.address = Address.objects.create(
+            user=self.user, recipient_name='Ali Bin Abu', phone='0198765432',
+            address_line_1='123 Jalan ABC', address_line_2='Taman Lama',
+            city='Skudai', state='Johor', postcode='81300', is_default=True,
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def checkout(self, payload):
+        return self.client.post('/api/orders/checkout', payload, format='json')
+
+    def test_checkout_with_own_saved_address_snapshots_it(self):
+        response = self.checkout({'address_id': self.address.id})
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['shipping_address'], {
+            'full_name': 'Ali Bin Abu',
+            'phone': '0198765432',
+            'address_line_1': '123 Jalan ABC',
+            'address_line_2': 'Taman Lama',
+            'city': 'Skudai',
+            'state': 'Johor',
+            'postcode': '81300',
+        })
+
+    def test_editing_the_address_later_does_not_change_the_order(self):
+        order_id = self.checkout({'address_id': self.address.id}).data['id']
+
+        self.client.patch(
+            f'/api/addresses/{self.address.id}',
+            {'address_line_1': '456 Jalan XYZ', 'postcode': '50000', 'city': 'Kuala Lumpur',
+             'state': 'Kuala Lumpur'},
+            format='json',
+        )
+
+        order = self.client.get(f'/api/orders/{order_id}').data
+        self.assertEqual(order['shipping_address']['address_line_1'], '123 Jalan ABC')
+        self.assertEqual(order['shipping_address']['postcode'], '81300')
+        self.assertEqual(order['shipping_address']['city'], 'Skudai')
+
+    def test_deleting_the_address_later_does_not_affect_the_order(self):
+        order_id = self.checkout({'address_id': self.address.id}).data['id']
+
+        self.client.delete(f'/api/addresses/{self.address.id}')
+
+        response = self.client.get(f'/api/orders/{order_id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['shipping_address']['address_line_1'], '123 Jalan ABC')
+
+    def test_cannot_check_out_with_another_users_address(self):
+        other = User.objects.create_user(email='other@example.com', password='CorrectPass123!', full_name='O')
+        others_address = Address.objects.create(
+            user=other, recipient_name='Someone Else', phone='0111111111', address_line_1='Private St',
+            city='Ipoh', state='Perak', postcode='30000', is_default=True,
+        )
+
+        response = self.checkout({'address_id': others_address.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('address_id', response.data)
+        self.assertNotIn('Private St', response.content.decode())
+        self.assertFalse(Order.objects.exists())
+        self.shirt_m.refresh_from_db()
+        self.assertEqual(self.shirt_m.stock, 5)
+
+    def test_invalid_address_references_are_rejected(self):
+        for payload in ({'address_id': 999999}, {'address_id': 'abc'}, {'address_id': 0}, {'address_id': None}):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.checkout(payload).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Order.objects.exists())
+
+    def test_address_id_and_inline_address_together_are_rejected(self):
+        response = self.checkout({'address_id': self.address.id, 'shipping_address': SHIPPING_ADDRESS})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Order.objects.exists())
+
+    def test_no_address_at_all_is_rejected(self):
+        response = self.checkout({})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Order.objects.exists())
+
+    def test_inline_address_checkout_still_works(self):
+        response = self.checkout({'shipping_address': SHIPPING_ADDRESS})
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['shipping_address']['full_name'], 'Test Buyer')
+
+    def test_totals_still_come_from_the_server(self):
+        response = self.checkout({'address_id': self.address.id, 'total': '0.01', 'subtotal': '0.01'})
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['total'], '89.90')
