@@ -10,10 +10,6 @@ final productServiceProvider = Provider<ProductService>((ref) {
   return ProductService(ref.watch(apiClientProvider).dio);
 });
 
-final productProvider = FutureProvider<List<ProductModel>>((ref) {
-  return ref.watch(productServiceProvider).getProducts();
-});
-
 /// Filters for a product listing, passed straight through to the API's
 /// `category` / `brand` (slugs) and `search` query parameters.
 typedef ProductQuery = ({String? category, String? brand, String? search});
@@ -30,7 +26,7 @@ final productListProvider = FutureProvider.autoDispose.family<List<ProductModel>
       );
 });
 
-final productDetailProvider =FutureProvider.family<ProductModel, int>((ref, id) {
+final productDetailProvider = FutureProvider.family<ProductModel, int>((ref, id) {
   return ref.watch(productServiceProvider).getProduct(id);
 });
 
