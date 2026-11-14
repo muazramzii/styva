@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -133,7 +135,66 @@ void main() {
     });
   });
 
+  group('Home filters', () {
+    testWidgets('missing filters are explained and can be reloaded', (tester) async {
+      stubProducts([_product(1, 'Basic Tee')]);
+      when(() => service.getCategories()).thenThrow(Exception('offline'));
+      await pumpAt(tester, '/home');
+
+      expect(find.text('Some filters could not be loaded.'), findsOneWidget);
+      expect(find.text('Basic Tee'), findsOneWidget);
+
+      when(() => service.getCategories()).thenAnswer((_) async => [_tops]);
+      await tester.tap(find.text('Reload filters'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Some filters could not be loaded.'), findsNothing);
+      expect(find.widgetWithText(ChoiceChip, 'Tops'), findsOneWidget);
+    });
+  });
+
   group('Search', () {
+    testWidgets('keeps the previous results on screen while a new search loads', (tester) async {
+      stubProducts([_product(1, 'Basic Tee')]);
+      await pumpAt(tester, '/discover');
+      final pending = Completer<List<ProductModel>>();
+      when(() => service.getProducts(category: null, brand: null, search: 'linen')).thenAnswer((_) => pending.future);
+
+      await tester.enterText(find.byKey(const Key('search_field')), 'linen');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+
+      expect(find.text('Basic Tee'), findsOneWidget);
+      expect(find.bySemanticsLabel('Searching'), findsOneWidget);
+
+      pending.complete([_product(2, 'Linen Shirt')]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Basic Tee'), findsNothing);
+      expect(find.text('Linen Shirt'), findsOneWidget);
+      expect(find.bySemanticsLabel('Searching'), findsNothing);
+    });
+
+    testWidgets('a failed search shows the error and Retry runs it again', (tester) async {
+      stubProducts([_product(1, 'Basic Tee')]);
+      await pumpAt(tester, '/discover');
+      when(() => service.getProducts(category: null, brand: null, search: 'linen')).thenThrow(Exception('offline'));
+
+      await tester.enterText(find.byKey(const Key('search_field')), 'linen');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not load products'), findsOneWidget);
+      expect(find.text('Basic Tee'), findsNothing);
+
+      when(() => service.getProducts(category: null, brand: null, search: 'linen'))
+          .thenAnswer((_) async => [_product(2, 'Linen Shirt')]);
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Linen Shirt'), findsOneWidget);
+    });
+
     testWidgets('searches the backend after a pause in typing', (tester) async {
       stubProducts([_product(1, 'Basic Tee')]);
       await pumpAt(tester, '/discover');

@@ -33,8 +33,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productListProvider(_query));
-    final categories = ref.watch(categoryProvider).valueOrNull ?? const [];
-    final brands = ref.watch(brandProvider).valueOrNull ?? const [];
+    final categoriesAsync = ref.watch(categoryProvider);
+    final brandsAsync = ref.watch(brandProvider);
+    final categories = categoriesAsync.valueOrNull ?? const [];
+    final brands = brandsAsync.valueOrNull ?? const [];
+    final filtersFailed = categoriesAsync.hasError || brandsAsync.hasError;
     final hasFilters = _category != null || _brand != null;
 
     return Scaffold(
@@ -106,6 +109,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                   selected: _brand,
                   allLabel: 'All brands',
                   onSelected: (slug) => setState(() => _brand = slug),
+                ),
+              ),
+            if (filtersFailed)
+              SliverToBoxAdapter(
+                child: _FiltersUnavailable(
+                  onRetry: () {
+                    ref.invalidate(categoryProvider);
+                    ref.invalidate(brandProvider);
+                  },
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
@@ -191,6 +203,32 @@ class _SearchEntry extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown when categories or brands could not be loaded, so the missing
+/// filter chips are explained and can be reloaded without losing the products.
+class _FiltersUnavailable extends StatelessWidget {
+  const _FiltersUnavailable({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.lg, AppSpacing.sm, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Some filters could not be loaded.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Reload filters')),
+        ],
       ),
     );
   }
