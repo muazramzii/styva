@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_spacing.dart';
+import '../../../models/product_model.dart';
 import '../../../providers/product_provider.dart';
 import '../../../shared/widgets/product_grid.dart';
 import '../../../shared/widgets/state_message.dart';
@@ -22,6 +23,9 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
   final _controller = TextEditingController();
   Timer? _debounce;
   String _search = '';
+
+  /// The last results that loaded, shown while the next query is in flight.
+  List<ProductModel>? _lastResults;
 
   @override
   void dispose() {
@@ -52,6 +56,15 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
     final ProductQuery query = (category: null, brand: null, search: _search);
     final productsAsync = ref.watch(productListProvider(query));
 
+    // Each query is its own provider, so a new one starts with no data.
+    // Showing the previous results until it answers keeps the grid from
+    // blinking to a spinner at every pause in typing.
+    final loaded = productsAsync.valueOrNull;
+    if (loaded != null) _lastResults = loaded;
+    final previous = _lastResults;
+    final showPrevious = loaded == null && productsAsync.isLoading && previous != null && previous.isNotEmpty;
+    final AsyncValue<List<ProductModel>> shown = showPrevious ? AsyncData(previous) : productsAsync;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Search')),
       body: CustomScrollView(
@@ -78,8 +91,14 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
               ),
             ),
           ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 2,
+              child: showPrevious ? const LinearProgressIndicator(minHeight: 2, semanticsLabel: 'Searching') : null,
+            ),
+          ),
           ProductGridSliver(
-            products: productsAsync,
+            products: shown,
             onProductTap: (product) => context.push('/product/${product.id}'),
             onRetry: () => ref.invalidate(productListProvider(query)),
             empty: StateMessage(

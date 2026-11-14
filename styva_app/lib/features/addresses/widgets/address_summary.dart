@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../models/address_model.dart';
 
 /// Recipient, phone and address lines for a saved address, as shown in the
@@ -18,37 +20,36 @@ class AddressSummary extends StatelessWidget {
         Row(
           children: [
             Flexible(child: Text(address.recipientName, style: textTheme.titleSmall)),
-            if (address.isDefault) ...[
-              const SizedBox(width: 8),
-              const DefaultAddressBadge(),
-            ],
+            if (address.isDefault) ...[const SizedBox(width: AppSpacing.sm), const DefaultAddressBadge()],
           ],
         ),
         const SizedBox(height: 2),
-        Text(address.phone),
-        Text(address.addressLine1),
-        if (address.addressLine2.isNotEmpty) Text(address.addressLine2),
-        Text('${address.postcode} ${address.city}, ${address.state}'),
+        for (final line in [
+          address.phone,
+          address.addressLine1,
+          if (address.addressLine2.isNotEmpty) address.addressLine2,
+          '${address.postcode} ${address.city}, ${address.state}',
+        ])
+          Text(line, style: textTheme.bodyMedium),
       ],
     );
   }
 }
 
+/// Marks the default address. Styled like the order status badges: charcoal
+/// on warm sand (6.6:1).
 class DefaultAddressBadge extends StatelessWidget {
   const DefaultAddressBadge({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: colors.secondaryContainer,
-        borderRadius: BorderRadius.circular(4),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
+      decoration: BoxDecoration(color: AppColors.sand, borderRadius: BorderRadius.circular(AppRadius.sm)),
       child: Text(
-        'Default',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.onSecondaryContainer),
+        'DEFAULT',
+        semanticsLabel: 'Default',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.charcoal, letterSpacing: 1.0),
       ),
     );
   }

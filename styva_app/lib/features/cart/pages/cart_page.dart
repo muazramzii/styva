@@ -107,7 +107,7 @@ class CartPage extends ConsumerWidget {
                         width: double.infinity,
                         child: ElevatedButton(
                           key: const Key('proceed_to_checkout_button'),
-                          onPressed: cart.items.isEmpty ? null : () => context.go(AppRoutes.checkout),
+                          onPressed: cart.items.isEmpty ? null : () => context.push(AppRoutes.checkout),
                           child: const Text('Proceed to Checkout'),
                         ),
                       ),

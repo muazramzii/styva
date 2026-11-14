@@ -13,7 +13,9 @@ This repository contains:
 - **Phase 1.4** delivered Wishlist & Cart Foundation: authenticated wishlist and cart APIs with server-authoritative pricing/stock, and functional Flutter Wishlist/Cart screens with variant selection on Product Detail.
 - **Phase 1.5** delivered Checkout & Order Foundation: transactional checkout with stock locking and deduction, price-snapshotted orders, order history, and the Flutter checkout → confirmation → orders flow.
 - **Phase 1.6** delivered Payment Foundation: a provider-agnostic payment model and API (initiation, status, signed webhooks, idempotent state transitions), a development-only mock provider, and the Flutter Pay Now / Try Again flow. No real payment gateway is integrated yet.
-- **Phase 1.7** delivers User Profile & Address Management: profile editing, authenticated password change, a saved-address book with a single default address, and checkout from a saved address (orders keep their own copy of the shipping address).
+- **Phase 1.7** delivered User Profile & Address Management: profile editing, authenticated password change, a saved-address book with a single default address, and checkout from a saved address (orders keep their own copy of the shipping address).
+- **Phase 1.8** delivered Brand Identity & Design System: the STYVA palette, bundled Cormorant Garamond and Lato typography, a Material 3 theme with shared tokens and widgets, restyled shopping screens, category and brand filters on Home, and product search. The logo is an interim typographic wordmark until the final logo files are supplied (see `styva_app/assets/brand/README.md`).
+- **Phase 1.9** delivers Design Completion: Checkout, Account, Edit Profile, Change Password and the address screens in the same design system, plus accessibility and feedback fixes from review (action buttons that stack at large text sizes, clearer loading and error states).
 
 ## Prerequisites
 

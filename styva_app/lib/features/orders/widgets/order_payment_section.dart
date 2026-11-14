@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../models/order_model.dart';
 import '../../../models/payment_model.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../shared/widgets/bottom_action_bar.dart';
+import '../../../shared/widgets/form_error_text.dart';
 
 /// Payment status for an order plus the action to pay it. What is shown is
 /// driven by the order's server-side `payment_status`, never by local state.
@@ -38,30 +41,30 @@ class OrderPaymentSection extends ConsumerWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
                 Icon(icon, color: color),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(label, style: textTheme.titleMedium?.copyWith(color: color)),
               ],
             ),
             if (canPay) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               FilledButton(
                 onPressed: isLoading ? null : () => _pay(context, ref),
                 child:
                     isLoading
-                        ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const ButtonProgress()
                         : Text(isFailed ? 'Try Again' : 'Pay Now'),
               ),
             ],
             if (paymentState is PaymentError) ...[
-              const SizedBox(height: 8),
-              Text(paymentState.message, style: TextStyle(color: colors.error)),
+              const SizedBox(height: AppSpacing.sm),
+              FormErrorText(paymentState.message),
             ],
           ],
         ),

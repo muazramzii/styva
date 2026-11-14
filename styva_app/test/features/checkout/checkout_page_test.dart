@@ -135,7 +135,7 @@ void main() {
     expect(find.text('RM 179.80'), findsNWidgets(2)); // line subtotal + order subtotal
     expect(find.text('RM 8.00'), findsOneWidget);
     expect(find.text('RM 187.80'), findsOneWidget);
-    expect(find.text('Coming in next phase'), findsOneWidget);
+    expect(find.text('You pay on the next step, after you place the order.'), findsOneWidget);
   });
 
   testWidgets('lists saved addresses with the default pre-selected and marked', (tester) async {
@@ -145,7 +145,7 @@ void main() {
 
     expect(find.text('Ali Home'), findsOneWidget);
     expect(find.text('Ali Office'), findsOneWidget);
-    expect(find.text('Default'), findsOneWidget);
+    expect(find.text('DEFAULT'), findsOneWidget);
     expect(addressTile(tester, 1).groupValue, 1);
     expect(placeOrderButton(tester).onPressed, isNotNull);
   });

@@ -118,6 +118,21 @@ void main() {
     expect(container.read(addressesProvider).value!.map((a) => a.id), [2]);
   });
 
+  test('a change that saved is not reported as failed when the re-fetch fails', () async {
+    when(() => service.getAddresses()).thenAnswer((_) async => [home, office]);
+    start();
+    await container.read(addressesProvider.future);
+    when(() => service.deleteAddress(2)).thenAnswer((_) async {});
+    when(() => service.getAddresses()).thenThrow(Exception('offline'));
+
+    // Completes normally: the delete itself succeeded.
+    await container.read(addressesProvider.notifier).delete(2);
+
+    // The list reloads on its own and reports the load problem instead.
+    await expectLater(container.read(addressesProvider.future), throwsException);
+    expect(container.read(addressesProvider).hasError, isTrue);
+  });
+
   test('a failed mutation throws and leaves the list as it was', () async {
     when(() => service.getAddresses()).thenAnswer((_) async => [home, office]);
     start();

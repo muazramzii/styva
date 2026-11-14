@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +15,7 @@ import '../../../models/variant_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/product_provider.dart';
 import '../../../providers/wishlist_provider.dart';
+import '../../../shared/widgets/bottom_action_bar.dart';
 import '../../../shared/widgets/product_image.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_message.dart';
@@ -277,35 +280,10 @@ class _ProductDetailBody extends StatelessWidget {
             ),
           ),
         ),
-        DecoratedBox(
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(top: BorderSide(color: AppColors.border)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.md, AppSpacing.page, AppSpacing.md),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: _barButtonPadding,
-                      onPressed: isSubmitting ? null : onAddToWishlist,
-                      child: const Text('Add to Wishlist', maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: _barButtonPadding,
-                      onPressed: canAddToCart ? onAddToCart : null,
-                      child: const Text('Add to Cart', maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        BottomActionBar(
+          child: _ActionButtons(
+            onAddToWishlist: isSubmitting ? null : onAddToWishlist,
+            onAddToCart: canAddToCart ? onAddToCart : null,
           ),
         ),
       ],
@@ -313,8 +291,68 @@ class _ProductDetailBody extends StatelessWidget {
   }
 }
 
-// Two equal buttons share the bar, so trim the theme's generous side
-// padding to keep both labels whole on a 360dp-wide phone.
+/// Add to Wishlist and Add to Cart. They sit side by side while both labels
+/// fit in full; at large text sizes or on narrow screens they stack, primary
+/// action first, so neither label is cut off.
+class _ActionButtons extends StatelessWidget {
+  const _ActionButtons({required this.onAddToWishlist, required this.onAddToCart});
+
+  static const _wishlistLabel = 'Add to Wishlist';
+  static const _cartLabel = 'Add to Cart';
+
+  final VoidCallback? onAddToWishlist;
+  final VoidCallback? onAddToCart;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final style = Theme.of(context).textTheme.labelLarge;
+        final scaler = MediaQuery.textScalerOf(context);
+        double widthOf(String label) {
+          final painter = TextPainter(
+            text: TextSpan(text: label, style: style),
+            textDirection: Directionality.of(context),
+            textScaler: scaler,
+            maxLines: 1,
+          )..layout();
+          final width = painter.width;
+          painter.dispose();
+          return width;
+        }
+
+        final widestLabel = math.max(widthOf(_wishlistLabel), widthOf(_cartLabel));
+        final halfWidth = (constraints.maxWidth - AppSpacing.md) / 2;
+        final fitsSideBySide = widestLabel + 2 * AppSpacing.md <= halfWidth;
+
+        final wishlist = OutlinedButton(
+          style: _barButtonPadding,
+          onPressed: onAddToWishlist,
+          child: const Text(_wishlistLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+        );
+        final cart = ElevatedButton(
+          style: _barButtonPadding,
+          onPressed: onAddToCart,
+          child: const Text(_cartLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+        );
+
+        if (fitsSideBySide) {
+          return Row(
+            children: [Expanded(child: wishlist), const SizedBox(width: AppSpacing.md), Expanded(child: cart)],
+          );
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [cart, const SizedBox(height: AppSpacing.sm), wishlist],
+        );
+      },
+    );
+  }
+}
+
+// Two buttons share the bar, so trim the theme's generous side padding to
+// give the labels as much room as possible.
 const _barButtonPadding = ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: AppSpacing.md)));
 
 /// "COLOR · Black" style label above an option group.

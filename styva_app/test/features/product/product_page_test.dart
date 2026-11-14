@@ -132,4 +132,34 @@ void main() {
 
     verify(() => wishlistService.addToWishlist(1)).called(1);
   });
+
+  group('action bar', () {
+    Future<void> pumpAt(WidgetTester tester, {required double width, double textScale = 1}) async {
+      tester.view.physicalSize = Size(width, 2400);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = textScale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(buildTestable());
+      await tester.pumpAndSettle();
+    }
+
+    final wishlistButton = find.widgetWithText(OutlinedButton, 'Add to Wishlist');
+    final cartButton = find.widgetWithText(ElevatedButton, 'Add to Cart');
+
+    testWidgets('the two actions sit side by side when both labels fit', (tester) async {
+      await pumpAt(tester, width: 800);
+
+      expect(tester.getTopLeft(wishlistButton).dy, tester.getTopLeft(cartButton).dy);
+      expect(tester.getTopLeft(wishlistButton).dx, lessThan(tester.getTopLeft(cartButton).dx));
+    });
+
+    testWidgets('they stack with Add to Cart first when the labels would be cut off', (tester) async {
+      await pumpAt(tester, width: 360, textScale: 2);
+
+      expect(tester.getTopLeft(cartButton).dy, lessThan(tester.getTopLeft(wishlistButton).dy));
+      expect(tester.getSize(cartButton).width, tester.getSize(wishlistButton).width);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

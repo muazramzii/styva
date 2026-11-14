@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/api_error.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/payment_model.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../shared/widgets/form_error_text.dart';
 import '../../../shared/widgets/state_message.dart';
 
 /// DEVELOPMENT ONLY. Stands in for a payment gateway's page while only the
@@ -59,46 +62,55 @@ class _MockPaymentBody extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.xl),
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: colors.tertiaryContainer, borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colors.tertiaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
           child: Row(
             children: [
               Icon(Icons.science_outlined, color: colors.onTertiaryContainer),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  'Development only — simulated payment. No real money is '
+                  'Development only: simulated payment. No real money is '
                   'charged and no bank is contacted.',
-                  style: TextStyle(color: colors.onTertiaryContainer),
+                  style: textTheme.bodyMedium?.copyWith(color: colors.onTertiaryContainer),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 32),
-        Text('Order', style: textTheme.labelLarge),
+        const SizedBox(height: AppSpacing.xxl),
+        Text('ORDER', style: AppTypography.eyebrow),
+        const SizedBox(height: 2),
         Text(payment.orderNumber, style: textTheme.titleMedium),
-        const SizedBox(height: 16),
-        Text('Payment reference', style: textTheme.labelLarge),
+        const SizedBox(height: AppSpacing.lg),
+        Text('PAYMENT REFERENCE', style: AppTypography.eyebrow),
+        const SizedBox(height: 2),
         Text(payment.reference, style: textTheme.titleMedium),
-        const SizedBox(height: 16),
-        Text('Amount', style: textTheme.labelLarge),
-        Text(formatMoney(payment.amount), style: textTheme.headlineSmall),
-        const SizedBox(height: 32),
+        const SizedBox(height: AppSpacing.lg),
+        Text('AMOUNT', style: AppTypography.eyebrow),
+        const SizedBox(height: 2),
+        Text(formatMoney(payment.amount), style: AppTypography.price.copyWith(fontSize: 22)),
+        const SizedBox(height: AppSpacing.xxl),
         if (isPending) ...[
           FilledButton(
             onPressed: isLoading ? null : () => _simulate(context, ref, PaymentStatus.success),
             child: const Text('Simulate Success'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           OutlinedButton(
             onPressed: isLoading ? null : () => _simulate(context, ref, PaymentStatus.failed),
             child: const Text('Simulate Failure'),
           ),
-          if (isLoading) ...[const SizedBox(height: 16), const Center(child: CircularProgressIndicator())],
+          if (isLoading) ...[
+            const SizedBox(height: AppSpacing.lg),
+            const Center(child: CircularProgressIndicator()),
+          ],
         ] else ...[
           Text(
             payment.status == PaymentStatus.success
@@ -106,12 +118,12 @@ class _MockPaymentBody extends ConsumerWidget {
                 : 'This test payment has already failed.',
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           OutlinedButton(onPressed: () => _leave(context), child: const Text('Back to Order')),
         ],
         if (paymentState is PaymentError) ...[
-          const SizedBox(height: 12),
-          Text(paymentState.message, style: TextStyle(color: colors.error)),
+          const SizedBox(height: AppSpacing.md),
+          FormErrorText(paymentState.message),
         ],
       ],
     );

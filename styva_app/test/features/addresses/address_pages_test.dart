@@ -41,8 +41,8 @@ void main() {
 
   setUp(() => service = MockAddressService());
 
-  Future<void> pumpAt(WidgetTester tester, String location) async {
-    tester.view.physicalSize = const Size(800, 2000);
+  Future<void> pumpAt(WidgetTester tester, String location, {Size size = const Size(800, 2000)}) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -89,7 +89,7 @@ void main() {
 
       expect(find.text('Ali Home'), findsOneWidget);
       expect(find.text('Ali Office'), findsOneWidget);
-      expect(find.text('Default'), findsOneWidget);
+      expect(find.text('DEFAULT'), findsOneWidget);
       // Only the non-default address offers Set Default.
       expect(find.text('Set Default'), findsOneWidget);
     });
@@ -107,7 +107,7 @@ void main() {
       when(() => service.getAddresses()).thenThrow(_apiError(500, {}));
       await pumpAt(tester, '/addresses');
 
-      expect(find.textContaining('Could not load your addresses.'), findsOneWidget);
+      expect(find.textContaining('Could not load your addresses'), findsOneWidget);
 
       when(() => service.getAddresses()).thenAnswer((_) async => [_home]);
       await tester.tap(find.text('Retry'));
@@ -129,7 +129,7 @@ void main() {
       verify(() => service.setDefault(2)).called(1);
       expect(find.text('Default address updated'), findsOneWidget);
       final officeCard = find.ancestor(of: find.text('Ali Office'), matching: find.byType(Card));
-      expect(find.descendant(of: officeCard, matching: find.text('Default')), findsOneWidget);
+      expect(find.descendant(of: officeCard, matching: find.text('DEFAULT')), findsOneWidget);
     });
 
     testWidgets('actions are disabled while one is in flight', (tester) async {
@@ -209,6 +209,29 @@ void main() {
 
     SwitchListTile defaultSwitch(WidgetTester tester) =>
         tester.widget<SwitchListTile>(find.byKey(const Key('address_default')));
+
+    testWidgets('fields keep a gap and nothing overflows at large text on a small phone', (tester) async {
+      when(() => service.getAddresses()).thenAnswer((_) async => []);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pumpAt(tester, '/addresses/new', size: const Size(360, 3000));
+
+      Rect rectOf(String key) => tester.getRect(find.byKey(Key(key)));
+      const order = [
+        'address_recipient',
+        'address_phone',
+        'address_line_1',
+        'address_line_2',
+        'address_city',
+        'address_state',
+        'address_postcode',
+      ];
+      for (var i = 0; i < order.length - 1; i++) {
+        final gap = rectOf(order[i + 1]).top - rectOf(order[i]).bottom;
+        expect(gap, greaterThanOrEqualTo(12), reason: '${order[i]} and ${order[i + 1]} should not touch');
+      }
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('invalid input is caught before any request', (tester) async {
       when(() => service.getAddresses()).thenAnswer((_) async => [_home]);

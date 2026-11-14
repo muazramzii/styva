@@ -31,12 +31,25 @@ class OrdersPage extends ConsumerWidget {
             ),
         data: (orders) {
           if (orders.isEmpty) {
-            return StateMessage(
-              icon: Icons.receipt_long_outlined,
-              title: 'No orders yet',
-              message: 'Your orders will appear here once you check out.',
-              actionLabel: 'Start Shopping',
-              onAction: () => context.go(AppRoutes.home),
+            // Scrollable at full height so pull-to-refresh works on the empty state too.
+            return RefreshIndicator(
+              onRefresh: () => ref.refresh(ordersProvider.future),
+              child: LayoutBuilder(
+                builder:
+                    (context, constraints) => SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: constraints.maxHeight,
+                        child: StateMessage(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'No orders yet',
+                          message: 'Your orders will appear here once you check out.',
+                          actionLabel: 'Start Shopping',
+                          onAction: () => context.go(AppRoutes.home),
+                        ),
+                      ),
+                    ),
+              ),
             );
           }
           return RefreshIndicator(

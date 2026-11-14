@@ -67,5 +67,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('checkout screen'), findsOneWidget);
+
+    // Checkout opens on top of the cart, so Back returns to the cart instead
+    // of leaving the app (Android) or the page (web).
+    final router = GoRouter.of(tester.element(find.text('checkout screen')));
+    expect(router.canPop(), isTrue);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('proceed_to_checkout_button')), findsOneWidget);
   });
 }

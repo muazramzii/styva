@@ -3,12 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/api_error.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/address_model.dart';
 import '../../../models/checkout_summary_model.dart';
 import '../../../providers/address_provider.dart';
 import '../../../providers/checkout_provider.dart';
+import '../../../shared/widgets/bottom_action_bar.dart';
+import '../../../shared/widgets/form_error_text.dart';
 import '../../addresses/widgets/address_summary.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -57,22 +62,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final hasItems = summaryAsync.valueOrNull?.items.isNotEmpty ?? false;
     final selectedAddress = _selectedAddress(addressesAsync.valueOrNull ?? const []);
     final canPlaceOrder = hasItems && selectedAddress != null && !isSubmitting;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page, AppSpacing.xl),
         children: [
-          Text('Shipping Address', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const _SectionTitle('Shipping Address'),
           addressesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const _SectionLoading(),
             error:
-                (error, _) => Row(
-                  children: [
-                    Expanded(child: Text('Could not load your addresses: ${extractApiErrorMessage(error)}')),
-                    TextButton(onPressed: () => ref.invalidate(addressesProvider), child: const Text('Retry')),
-                  ],
+                (error, _) => _SectionError(
+                  message: 'Could not load your addresses: ${extractApiErrorMessage(error)}',
+                  onRetry: () => ref.invalidate(addressesProvider),
                 ),
             data:
                 (addresses) => _AddressPicker(
@@ -83,43 +86,93 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   onAdd: _addAddress,
                 ),
           ),
-          const SizedBox(height: 24),
-          Text('Order Summary', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const _SectionTitle('Order Summary'),
           summaryAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Text('Could not load your cart: $error'),
+            loading: () => const _SectionLoading(),
+            error:
+                (error, _) => _SectionError(
+                  message: 'Could not load your cart: ${extractApiErrorMessage(error)}',
+                  onRetry: () => ref.invalidate(checkoutSummaryProvider),
+                ),
             data: (summary) => _OrderSummary(summary: summary),
           ),
-          const SizedBox(height: 24),
-          Text('Payment', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          const ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.payment_outlined),
-            title: Text('Payment method'),
-            subtitle: Text('Coming in next phase'),
+          const _SectionTitle('Payment'),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.payment_outlined, size: 20, color: AppColors.textSecondary),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  'You pay on the next step, after you place the order.',
+                  style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                ),
+              ),
+            ],
           ),
-          if (checkoutState case CheckoutError(:final message))
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(message, style: const TextStyle(color: Colors.red)),
-            ),
+          if (checkoutState case CheckoutError(:final message)) ...[
+            const SizedBox(height: AppSpacing.lg),
+            FormErrorText(message),
+          ],
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            key: const Key('place_order_button'),
-            onPressed: canPlaceOrder ? () => ref.read(checkoutProvider.notifier).placeOrder(selectedAddress.id) : null,
-            child:
-                isSubmitting
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(hasItems || summaryAsync.isLoading ? 'Place Order' : 'Your cart is empty'),
-          ),
+      bottomNavigationBar: BottomActionBar(
+        child: ElevatedButton(
+          key: const Key('place_order_button'),
+          onPressed: canPlaceOrder ? () => ref.read(checkoutProvider.notifier).placeOrder(selectedAddress.id) : null,
+          child:
+              isSubmitting
+                  ? const ButtonProgress()
+                  : Text(hasItems || summaryAsync.isLoading ? 'Place Order' : 'Your cart is empty'),
         ),
       ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
+      child: Semantics(header: true, child: Text(title.toUpperCase(), style: AppTypography.eyebrow)),
+    );
+  }
+}
+
+class _SectionLoading extends StatelessWidget {
+  const _SectionLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+/// A section that failed to load: what went wrong and a way to try again,
+/// without taking over the rest of the checkout.
+class _SectionError extends StatelessWidget {
+  const _SectionError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FormErrorText(message),
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
     );
   }
 }
@@ -145,8 +198,8 @@ class _AddressPicker extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Add a shipping address to continue.'),
-          const SizedBox(height: 8),
+          Text('Add a shipping address to continue.', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
             key: const Key('checkout_add_address'),
             onPressed: enabled ? onAdd : null,
@@ -161,13 +214,27 @@ class _AddressPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final address in addresses)
-          RadioListTile<int>(
-            key: Key('checkout_address_${address.id}'),
-            contentPadding: EdgeInsets.zero,
-            value: address.id,
-            groupValue: selected?.id,
-            onChanged: enabled ? (id) => onSelected(id!) : null,
-            title: AddressSummary(address: address),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            // The outline shows which address is chosen as well as the radio.
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: address.id == selected?.id ? AppColors.charcoal : AppColors.border,
+                  width: address.id == selected?.id ? 1.5 : 1,
+                ),
+              ),
+              child: RadioListTile<int>(
+                key: Key('checkout_address_${address.id}'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                value: address.id,
+                groupValue: selected?.id,
+                onChanged: enabled ? (id) => onSelected(id!) : null,
+                title: AddressSummary(address: address),
+              ),
+            ),
           ),
         TextButton.icon(
           key: const Key('checkout_add_address'),
@@ -187,12 +254,14 @@ class _OrderSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     if (summary.items.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Your cart is empty'),
-          TextButton(onPressed: () => context.go(AppRoutes.home), child: const Text('Continue Shopping')),
+          Text('Your cart is empty', style: textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton(onPressed: () => context.go(AppRoutes.home), child: const Text('Continue Shopping')),
         ],
       );
     }
@@ -200,16 +269,39 @@ class _OrderSummary extends StatelessWidget {
     return Column(
       children: [
         for (final item in summary.items)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(item.variant.product?.name ?? 'Product'),
-            subtitle: Text(
-              '${item.variant.size} / ${item.variant.color} · '
-              '${item.quantity} × ${formatMoney(item.variant.product?.price ?? 0)}',
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (item.variant.product != null)
+                        Text(
+                          item.variant.product!.brand.toUpperCase(),
+                          style: AppTypography.eyebrow,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      const SizedBox(height: 2),
+                      Text(item.variant.product?.name ?? 'Product', style: textTheme.bodyLarge),
+                      Text(
+                        '${item.variant.size} / ${item.variant.color} · '
+                        '${item.quantity} × ${formatMoney(item.variant.product?.price ?? 0)}',
+                        style: textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Text(formatMoney(item.subtotal), style: AppTypography.price),
+              ],
             ),
-            trailing: Text(formatMoney(item.subtotal)),
           ),
         const Divider(),
+        const SizedBox(height: AppSpacing.sm),
         _SummaryRow(label: 'Subtotal', value: formatMoney(summary.subtotal)),
         _SummaryRow(label: 'Shipping', value: formatMoney(summary.shippingFee)),
         _SummaryRow(label: 'Total', value: formatMoney(summary.total), emphasize: true),
@@ -227,12 +319,15 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = emphasize ? Theme.of(context).textTheme.titleMedium : null;
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(value, style: style)],
+        children: [
+          Text(label, style: emphasize ? textTheme.titleMedium : textTheme.bodyMedium),
+          Text(value, style: emphasize ? AppTypography.price.copyWith(fontSize: 18) : AppTypography.price),
+        ],
       ),
     );
   }

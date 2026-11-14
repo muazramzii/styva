@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/malaysia.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/profile_provider.dart';
+import '../../../shared/widgets/bottom_action_bar.dart';
+import '../../../shared/widgets/form_error_text.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -67,7 +70,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.xl),
           children: [
             TextFormField(
               key: const Key('profile_name'),
@@ -75,6 +78,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               enabled: !isSaving,
               decoration: const InputDecoration(labelText: 'Full name'),
               textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.name],
               validator: (value) {
                 final text = value?.trim() ?? '';
                 if (text.isEmpty) return 'Full name is required';
@@ -82,20 +87,22 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 return null;
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               key: const Key('profile_phone'),
               controller: _phone,
               enabled: !isSaving,
               decoration: const InputDecoration(labelText: 'Phone (optional)', hintText: '012-345 6789'),
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.telephoneNumber],
               validator: (value) {
                 final text = value?.trim() ?? '';
                 if (text.isNotEmpty && !phonePattern.hasMatch(text)) return 'Enter a valid phone number';
                 return null;
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               // initialValue is read once; the key rebuilds the field if the
               // user loads after the page was first built.
@@ -108,22 +115,17 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               ),
             ),
             if (submitState case SubmitError(:final message)) ...[
-              const SizedBox(height: 16),
-              Text(message, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              const SizedBox(height: AppSpacing.lg),
+              FormErrorText(message),
             ],
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FilledButton(
-            key: const Key('profile_save'),
-            onPressed: isSaving ? null : _save,
-            child: isSaving
-                ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Save'),
-          ),
+      bottomNavigationBar: BottomActionBar(
+        child: FilledButton(
+          key: const Key('profile_save'),
+          onPressed: isSaving ? null : _save,
+          child: isSaving ? const ButtonProgress() : const Text('Save'),
         ),
       ),
     );
