@@ -3,97 +3,95 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../providers/auth_provider.dart';
 
-/// The Account screen: profile summary plus entry points for editing the
-/// profile, orders, password, saved addresses and signing out.
+/// The Account screen: who is signed in, then entry points for editing the
+/// profile, orders, saved addresses, password and signing out.
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final hasPhone = user?.phone.isNotEmpty ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Account')),
       body: ListView(
         children: [
-          const _SectionHeader('Profile'),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Name'),
-            subtitle: Text(user?.fullName ?? ''),
-          ),
-          ListTile(
-            leading: const Icon(Icons.mail_outline),
-            title: const Text('Email'),
-            subtitle: Text(user?.email ?? ''),
-          ),
-          ListTile(
-            leading: const Icon(Icons.phone_outlined),
-            title: const Text('Phone'),
-            subtitle: Text(
-              (user?.phone.isNotEmpty ?? false) ? user!.phone : 'Not set',
-              style: (user?.phone.isNotEmpty ?? false) ? null : TextStyle(color: colors.outline),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.xl, AppSpacing.page, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(header: true, child: Text(user?.fullName ?? '', style: textTheme.headlineMedium)),
+                const SizedBox(height: AppSpacing.md),
+                _ContactLine(icon: Icons.mail_outline, semanticLabel: 'Email', value: user?.email ?? ''),
+                const SizedBox(height: AppSpacing.xs),
+                _ContactLine(
+                  icon: Icons.phone_outlined,
+                  semanticLabel: 'Phone',
+                  value: hasPhone ? user!.phone : 'Not set',
+                  muted: !hasPhone,
+                ),
+              ],
             ),
           ),
+          const Divider(),
           _NavTile(
             icon: Icons.edit_outlined,
             label: 'Edit Profile',
             onTap: () => context.push(AppRoutes.editProfile),
           ),
-          const Divider(height: 32),
-          const _SectionHeader('Orders'),
           _NavTile(
             icon: Icons.receipt_long_outlined,
             label: 'My Orders',
             onTap: () => context.push(AppRoutes.orders),
           ),
-          const Divider(height: 32),
-          const _SectionHeader('Addresses'),
           _NavTile(
             icon: Icons.location_on_outlined,
             label: 'Saved Addresses',
             onTap: () => context.push(AppRoutes.addresses),
           ),
-          const Divider(height: 32),
-          const _SectionHeader('Security'),
           _NavTile(
             icon: Icons.lock_outline,
             label: 'Change Password',
             onTap: () => context.push(AppRoutes.changePassword),
           ),
-          const Divider(height: 32),
-          const _SectionHeader('Session'),
+          const Divider(),
           ListTile(
-            leading: Icon(Icons.logout, color: colors.error),
-            title: Text('Log out', style: TextStyle(color: colors.error)),
+            leading: const Icon(Icons.logout, color: AppColors.error),
+            title: Text('Log out', style: textTheme.bodyLarge?.copyWith(color: AppColors.error)),
             onTap: () => ref.read(authProvider.notifier).logout(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+/// An icon and one line of contact detail under the user's name.
+class _ContactLine extends StatelessWidget {
+  const _ContactLine({required this.icon, required this.semanticLabel, required this.value, this.muted = false});
 
-  final String title;
+  final IconData icon;
+  final String semanticLabel;
+  final String value;
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              letterSpacing: 1.2,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-      ),
+    final style = Theme.of(context).textTheme.bodyMedium;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textSecondary, semanticLabel: semanticLabel),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(child: Text(value, style: muted ? style?.copyWith(color: AppColors.textSecondary) : style)),
+      ],
     );
   }
 }
