@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/malaysia.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/api_error.dart';
 import '../../../models/address_model.dart';
 import '../../../providers/address_provider.dart';
+import '../../../shared/widgets/bottom_action_bar.dart';
+import '../../../shared/widgets/form_error_text.dart';
+import '../../../shared/widgets/state_message.dart';
 
 /// Add a new address (`addressId == null`) or edit an existing one. On save
 /// the page pops with the saved [AddressModel], so callers such as checkout
@@ -21,8 +28,16 @@ class AddressFormPage extends ConsumerWidget {
     final id = isEditing ? int.tryParse(addressId!) : null;
     final title = Text(isEditing ? 'Edit Address' : 'Add Address');
 
+    final notFound = StateMessage(
+      icon: Icons.location_off_outlined,
+      title: 'Address not found',
+      message: 'It may have been deleted.',
+      actionLabel: 'Back to Addresses',
+      onAction: () => context.go(AppRoutes.addresses),
+    );
+
     if (isEditing && id == null) {
-      return Scaffold(appBar: AppBar(title: title), body: const Center(child: Text('Address not found')));
+      return Scaffold(appBar: AppBar(title: title), body: notFound);
     }
 
     final addressesAsync = ref.watch(addressesProvider);
@@ -30,22 +45,18 @@ class AddressFormPage extends ConsumerWidget {
       appBar: AppBar(title: title),
       body: addressesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Could not load your addresses.\n${extractApiErrorMessage(error)}', textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              OutlinedButton(onPressed: () => ref.invalidate(addressesProvider), child: const Text('Retry')),
-            ],
-          ),
-        ),
+        error:
+            (error, _) => StateMessage.error(
+              title: 'Could not load your addresses',
+              message: extractApiErrorMessage(error),
+              onRetry: () => ref.invalidate(addressesProvider),
+            ),
         data: (addresses) {
           if (!isEditing) {
             return _AddressForm(initial: null, isFirstAddress: addresses.isEmpty);
           }
           final address = addresses.where((a) => a.id == id).firstOrNull;
-          if (address == null) return const Center(child: Text('Address not found'));
+          if (address == null) return notFound;
           return _AddressForm(initial: address, isFirstAddress: false);
         },
       ),
@@ -123,9 +134,8 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
     );
     try {
       final notifier = ref.read(addressesProvider.notifier);
-      final saved = widget.initial == null
-          ? await notifier.create(input)
-          : await notifier.save(widget.initial!.id, input);
+      final saved =
+          widget.initial == null ? await notifier.create(input) : await notifier.save(widget.initial!.id, input);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Address saved')));
       popOrGo(context, AppRoutes.addresses, saved);
@@ -141,119 +151,155 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
 
   @override
   Widget build(BuildContext context) {
+    const gap = SizedBox(height: AppSpacing.md);
     return Column(
       children: [
         Expanded(
           child: Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.lg, AppSpacing.page, AppSpacing.xl),
               children: [
+                const _GroupLabel('Recipient'),
                 TextFormField(
                   key: const Key('address_recipient'),
                   controller: _name,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'Recipient name'),
                   textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.name],
                   validator: (v) => _required(v, 'Recipient name'),
                 ),
+                gap,
                 TextFormField(
                   key: const Key('address_phone'),
                   controller: _phone,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'Phone number', hintText: '012-345 6789'),
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.telephoneNumber],
                   validator: (v) {
                     final missing = _required(v, 'Phone number');
                     if (missing != null) return missing;
                     return phonePattern.hasMatch(v!.trim()) ? null : 'Enter a valid phone number';
                   },
                 ),
+                const SizedBox(height: AppSpacing.xl),
+                const _GroupLabel('Address'),
                 TextFormField(
                   key: const Key('address_line_1'),
                   controller: _line1,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'Address line 1'),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.streetAddressLine1],
                   validator: (v) => _required(v, 'Address line 1'),
                 ),
+                gap,
                 TextFormField(
                   key: const Key('address_line_2'),
                   controller: _line2,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'Address line 2 (optional)'),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.streetAddressLine2],
                 ),
+                gap,
                 TextFormField(
                   key: const Key('address_city'),
                   controller: _city,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'City'),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.addressCity],
                   validator: (v) => _required(v, 'City'),
                 ),
+                gap,
                 DropdownButtonFormField<String>(
                   key: const Key('address_state'),
                   value: _state,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'State'),
                   items: [
-                    for (final (value, label) in malaysianStates)
-                      DropdownMenuItem(value: value, child: Text(label)),
+                    for (final (value, label) in malaysianStates) DropdownMenuItem(value: value, child: Text(label)),
                   ],
                   onChanged: _saving ? null : (value) => setState(() => _state = value),
                   validator: (v) => v == null ? 'State is required' : null,
                 ),
+                gap,
                 TextFormField(
                   key: const Key('address_postcode'),
                   controller: _postcode,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'Postcode'),
                   keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.postalCode],
                   validator: (v) {
                     final missing = _required(v, 'Postcode');
                     if (missing != null) return missing;
                     return postcodePattern.hasMatch(v!.trim()) ? null : 'Enter a valid 5-digit postcode';
                   },
                 ),
+                gap,
                 TextFormField(
                   initialValue: 'Malaysia',
                   enabled: false,
-                  decoration: const InputDecoration(labelText: 'Country'),
+                  decoration: const InputDecoration(labelText: 'Country', helperText: 'STYVA ships within Malaysia.'),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.lg),
+                const Divider(),
                 SwitchListTile(
                   key: const Key('address_default'),
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Set as default'),
-                  subtitle: _defaultLocked
-                      ? Text(widget.isFirstAddress
-                          ? 'Your first address is your default.'
-                          : 'This is your default. To change it, set another address as default.')
-                      : null,
+                  subtitle:
+                      _defaultLocked
+                          ? Text(
+                            widget.isFirstAddress
+                                ? 'Your first address is your default.'
+                                : 'This is your default. To change it, set another address as default.',
+                          )
+                          : null,
                   value: _isDefault,
                   onChanged: _defaultLocked || _saving ? null : (value) => setState(() => _isDefault = value),
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                ],
+                if (_error != null) ...[const SizedBox(height: AppSpacing.sm), FormErrorText(_error!)],
               ],
             ),
           ),
         ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('address_save'),
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Save Address'),
-              ),
+        BottomActionBar(
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              key: const Key('address_save'),
+              onPressed: _saving ? null : _save,
+              child: _saving ? const ButtonProgress() : const Text('Save Address'),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Small caption above a group of related fields.
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Text(label.toUpperCase(), style: AppTypography.eyebrow),
     );
   }
 }

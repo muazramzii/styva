@@ -145,7 +145,7 @@ void main() {
 
     expect(find.text('Ali Home'), findsOneWidget);
     expect(find.text('Ali Office'), findsOneWidget);
-    expect(find.text('Default'), findsOneWidget);
+    expect(find.text('DEFAULT'), findsOneWidget);
     expect(addressTile(tester, 1).groupValue, 1);
     expect(placeOrderButton(tester).onPressed, isNotNull);
   });

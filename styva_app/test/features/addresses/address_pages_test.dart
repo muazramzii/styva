@@ -89,7 +89,7 @@ void main() {
 
       expect(find.text('Ali Home'), findsOneWidget);
       expect(find.text('Ali Office'), findsOneWidget);
-      expect(find.text('Default'), findsOneWidget);
+      expect(find.text('DEFAULT'), findsOneWidget);
       // Only the non-default address offers Set Default.
       expect(find.text('Set Default'), findsOneWidget);
     });
@@ -107,7 +107,7 @@ void main() {
       when(() => service.getAddresses()).thenThrow(_apiError(500, {}));
       await pumpAt(tester, '/addresses');
 
-      expect(find.textContaining('Could not load your addresses.'), findsOneWidget);
+      expect(find.textContaining('Could not load your addresses'), findsOneWidget);
 
       when(() => service.getAddresses()).thenAnswer((_) async => [_home]);
       await tester.tap(find.text('Retry'));
@@ -129,7 +129,7 @@ void main() {
       verify(() => service.setDefault(2)).called(1);
       expect(find.text('Default address updated'), findsOneWidget);
       final officeCard = find.ancestor(of: find.text('Ali Office'), matching: find.byType(Card));
-      expect(find.descendant(of: officeCard, matching: find.text('Default')), findsOneWidget);
+      expect(find.descendant(of: officeCard, matching: find.text('DEFAULT')), findsOneWidget);
     });
 
     testWidgets('actions are disabled while one is in flight', (tester) async {
