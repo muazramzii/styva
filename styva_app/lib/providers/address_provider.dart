@@ -48,8 +48,15 @@ class AddressesNotifier extends AutoDisposeAsyncNotifier<List<AddressModel>> {
     await _reload();
   }
 
+  /// The change itself has already succeeded by the time this runs, so a
+  /// failed re-fetch must not make the caller report the change as failed.
+  /// Rebuilding instead shows the list's own loading/error state with Retry.
   Future<void> _reload() async {
-    state = AsyncData(await _service.getAddresses());
+    try {
+      state = AsyncData(await _service.getAddresses());
+    } catch (_) {
+      ref.invalidateSelf();
+    }
   }
 }
 
